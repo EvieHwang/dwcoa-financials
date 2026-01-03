@@ -13,6 +13,12 @@ sys.modules['boto3'] = MagicMock()
 sys.modules['botocore'] = MagicMock()
 sys.modules['botocore.exceptions'] = MagicMock()
 
+# Mock AWS Lambda Powertools Logger
+mock_logger = MagicMock()
+mock_powertools = MagicMock()
+mock_powertools.Logger.return_value = mock_logger
+sys.modules['aws_lambda_powertools'] = mock_powertools
+
 # Create a mock S3 module
 mock_s3 = MagicMock()
 mock_s3.get_bucket_name.return_value = 'test-bucket'

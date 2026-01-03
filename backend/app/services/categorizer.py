@@ -5,9 +5,14 @@ import os
 import re
 from typing import List, Optional, Tuple
 
+from aws_lambda_powertools import Logger
+
 from app.services import database
 from app.models.entities import CategorizationResult
 
+
+# Initialize structured logger
+logger = Logger(service="dwcoa-categorizer")
 
 # Confidence threshold for marking as needs_review
 REVIEW_THRESHOLD = 80
@@ -30,6 +35,18 @@ def categorize_transaction(description: str, account_name: str) -> Categorizatio
         try:
             pattern = rule['pattern']
             if re.search(pattern, description, re.IGNORECASE):
+                logger.info(
+                    "Rules engine match",
+                    extra={
+                        "categorization_source": "rules_engine",
+                        "pattern_matched": pattern,
+                        "category_id": rule['category_id'],
+                        "category_name": rule['category_name'],
+                        "confidence": rule['confidence'],
+                        "description_preview": description[:50],
+                        "account": account_name
+                    }
+                )
                 return CategorizationResult(
                     category_id=rule['category_id'],
                     category_name=rule['category_name'],
@@ -39,9 +56,21 @@ def categorize_transaction(description: str, account_name: str) -> Categorizatio
                 )
         except re.error:
             # Invalid regex pattern, skip
+            logger.warning(
+                "Invalid regex pattern in rules",
+                extra={"pattern": rule['pattern'], "rule_id": rule.get('id')}
+            )
             continue
 
     # No rule matched
+    logger.debug(
+        "No rules engine match",
+        extra={
+            "categorization_source": "none",
+            "description_preview": description[:50],
+            "account": account_name
+        }
+    )
     return CategorizationResult(
         category_id=None,
         category_name=None,
@@ -67,7 +96,10 @@ def categorize_batch_with_claude(
     api_key = os.environ.get('ANTHROPIC_API_KEY', '')
 
     if not api_key:
-        # No API key, return uncategorized
+        logger.warning(
+            "Claude API key not configured",
+            extra={"transaction_count": len(transactions)}
+        )
         return [
             CategorizationResult(
                 category_id=None,
@@ -121,6 +153,15 @@ Rules:
 - If truly uncertain, use "Other" with low confidence
 """
 
+        logger.info(
+            "Calling Claude API for categorization",
+            extra={
+                "categorization_source": "claude_api",
+                "transaction_count": len(transactions),
+                "model": "claude-3-haiku-20240307"
+            }
+        )
+
         message = client.messages.create(
             model="claude-3-haiku-20240307",
             max_tokens=1024,
@@ -153,6 +194,18 @@ Rules:
                 confidence = result_data.get('confidence', 0)
                 cat_id = category_map.get(cat_name)
 
+                logger.info(
+                    "Claude API categorization",
+                    extra={
+                        "categorization_source": "claude_api",
+                        "category_id": cat_id,
+                        "category_name": cat_name,
+                        "confidence": confidence,
+                        "description_preview": txn['description'][:50],
+                        "account": txn['account_name']
+                    }
+                )
+
                 results.append(CategorizationResult(
                     category_id=cat_id,
                     category_name=cat_name if cat_id else None,
@@ -169,10 +222,25 @@ Rules:
                     source='none'
                 ))
 
+        logger.info(
+            "Claude API batch complete",
+            extra={
+                "categorization_source": "claude_api",
+                "transaction_count": len(transactions),
+                "successful_count": sum(1 for r in results if r.category_id is not None)
+            }
+        )
+
         return results
 
     except Exception as e:
-        print(f"Claude API error: {e}")
+        logger.error(
+            "Claude API error",
+            extra={
+                "error": str(e),
+                "transaction_count": len(transactions)
+            }
+        )
         # Return uncategorized on error
         return [
             CategorizationResult(
@@ -200,6 +268,9 @@ def categorize_transactions(transactions: List[dict]) -> List[Tuple[dict, Catego
     results: List[Tuple[dict, CategorizationResult]] = []
     uncertain: List[Tuple[int, dict]] = []  # (index, transaction)
 
+    rules_matched = 0
+    rules_low_confidence = 0
+
     # First pass: rules engine
     for i, txn in enumerate(transactions):
         result = categorize_transaction(
@@ -210,12 +281,16 @@ def categorize_transactions(transactions: List[dict]) -> List[Tuple[dict, Catego
         if result.category_id is not None and result.confidence >= REVIEW_THRESHOLD:
             # High confidence match
             results.append((txn, result))
+            rules_matched += 1
         else:
             # Need Claude API
             uncertain.append((i, txn))
             results.append((txn, result))  # Placeholder
+            if result.category_id is not None:
+                rules_low_confidence += 1
 
     # Second pass: Claude API for uncertain transactions
+    claude_improved = 0
     if uncertain:
         categories = database.get_categories(active_only=True)
         uncertain_txns = [t for _, t in uncertain]
@@ -228,6 +303,20 @@ def categorize_transactions(transactions: List[dict]) -> List[Tuple[dict, Catego
             current = results[orig_idx][1]
             if claude_result.confidence > current.confidence:
                 results[orig_idx] = (results[orig_idx][0], claude_result)
+                claude_improved += 1
+
+    # Log batch summary
+    logger.info(
+        "Categorization batch summary",
+        extra={
+            "total_transactions": len(transactions),
+            "rules_engine_matched": rules_matched,
+            "rules_low_confidence": rules_low_confidence,
+            "sent_to_claude": len(uncertain),
+            "claude_improved": claude_improved,
+            "uncategorized": len(transactions) - rules_matched - claude_improved
+        }
+    )
 
     return results
 
@@ -322,10 +411,21 @@ def learn_pattern(description: str, category_id: int, confidence: int = 90) -> N
     patterns = extract_pattern_from_description(description)
 
     if not patterns:
+        logger.warning(
+            "Pattern learning failed - no patterns extracted",
+            extra={
+                "description_preview": description[:50],
+                "category_id": category_id
+            }
+        )
         return
 
     # Use the first (most specific) pattern
     pattern = patterns[0]
+
+    # Get category name for logging
+    cat = database.get_category_by_id(category_id)
+    cat_name = cat['name'] if cat else f'ID:{category_id}'
 
     # Check if similar rule exists for this category
     existing = database.fetch_one(
@@ -339,7 +439,19 @@ def learn_pattern(description: str, category_id: int, confidence: int = 90) -> N
             "UPDATE categorize_rules SET confidence = MAX(confidence, ?) WHERE id = ?",
             (confidence, existing['id'])
         )
-        print(f"[LEARN] Updated existing rule for pattern '{pattern}' with confidence {confidence}")
+        logger.info(
+            "Pattern learning - updated existing rule",
+            extra={
+                "pattern_learning": True,
+                "action": "update",
+                "pattern": pattern,
+                "category_id": category_id,
+                "category_name": cat_name,
+                "confidence": confidence,
+                "rule_id": existing['id'],
+                "description_preview": description[:50]
+            }
+        )
     else:
         # Create new rule with lower priority (learned rules)
         database.execute(
@@ -347,7 +459,16 @@ def learn_pattern(description: str, category_id: int, confidence: int = 90) -> N
                VALUES (?, ?, ?, 50)""",
             (pattern, category_id, confidence)
         )
-        # Get category name for logging
-        cat = database.get_category_by_id(category_id)
-        cat_name = cat['name'] if cat else f'ID:{category_id}'
-        print(f"[LEARN] Created new rule: '{pattern}' -> '{cat_name}' (confidence: {confidence})")
+        logger.info(
+            "Pattern learning - created new rule",
+            extra={
+                "pattern_learning": True,
+                "action": "create",
+                "pattern": pattern,
+                "category_id": category_id,
+                "category_name": cat_name,
+                "confidence": confidence,
+                "priority": 50,
+                "description_preview": description[:50]
+            }
+        )
