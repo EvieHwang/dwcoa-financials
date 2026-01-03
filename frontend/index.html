@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DWCOA Financial Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <h2>DWCOA Financial Dashboard</h2>
+            <p>Enter password to access</p>
+            <form id="login-form">
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+                <p id="login-error" class="error hidden"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden">
+        <!-- Header -->
+        <header>
+            <div class="header-content">
+                <h1>DWCOA Financial Dashboard</h1>
+                <div class="header-meta">
+                    <span id="last-updated"></span>
+                    <span id="user-role" class="badge"></span>
+                    <button id="logout-btn" class="btn-secondary">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Account Balances -->
+            <section id="accounts-section">
+                <h2>Account Balances</h2>
+                <div id="accounts-grid" class="accounts-grid"></div>
+                <div class="total-row">
+                    <strong>Total Cash:</strong>
+                    <span id="total-cash"></span>
+                </div>
+            </section>
+
+            <!-- Budget Summary -->
+            <section id="budget-section">
+                <div class="budget-columns">
+                    <!-- Income -->
+                    <div class="budget-column">
+                        <h2>Income</h2>
+                        <div class="summary-row">
+                            <span>YTD Budget:</span>
+                            <span id="income-ytd-budget"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>YTD Actual:</span>
+                            <span id="income-ytd-actual"></span>
+                        </div>
+                        <table id="income-table" class="budget-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>YTD Budget</th>
+                                    <th>YTD Actual</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Expenses -->
+                    <div class="budget-column">
+                        <h2>Expenses</h2>
+                        <div class="summary-row">
+                            <span>YTD Budget:</span>
+                            <span id="expense-ytd-budget"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>YTD Actual:</span>
+                            <span id="expense-ytd-actual"></span>
+                        </div>
+                        <div class="summary-row remaining">
+                            <span>Remaining:</span>
+                            <span id="expense-remaining"></span>
+                        </div>
+                        <table id="expense-table" class="budget-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>YTD Budget</th>
+                                    <th>Actual</th>
+                                    <th>Remaining</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dues Status -->
+            <section id="dues-section">
+                <h2>Dues Status by Unit</h2>
+                <table id="dues-table" class="dues-table">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Ownership</th>
+                            <th>Expected</th>
+                            <th>Paid YTD</th>
+                            <th>Outstanding</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </section>
+
+            <!-- Admin Controls -->
+            <section id="admin-section" class="admin-only hidden">
+                <h2>Admin Controls</h2>
+                <div class="admin-controls">
+                    <div class="control-group">
+                        <h3>Upload Transactions</h3>
+                        <input type="file" id="csv-file" accept=".csv">
+                        <button id="upload-btn" class="btn-primary">Upload CSV</button>
+                        <span id="upload-status"></span>
+                    </div>
+                    <div class="control-group">
+                        <h3>Review Queue</h3>
+                        <span id="review-count"></span>
+                        <button id="review-btn" class="btn-secondary">Review Transactions</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Download Controls -->
+            <section id="download-section">
+                <h2>Downloads</h2>
+                <div class="download-controls">
+                    <button id="download-csv-btn" class="btn-secondary">Download CSV</button>
+                    <button id="download-pdf-btn" class="btn-secondary">Download PDF</button>
+                    <button id="print-btn" class="btn-secondary">Print Dashboard</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>Denny Way Condo Owners Association</p>
+        </footer>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="review-modal" class="modal hidden">
+        <div class="modal-content modal-large">
+            <h2>Review Transactions</h2>
+            <button id="close-review-btn" class="close-btn">&times;</button>
+            <div id="review-list"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

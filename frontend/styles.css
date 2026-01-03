@@ -1,0 +1,416 @@
+/* DWCOA Financial Dashboard Styles */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --success-color: #16a34a;
+    --warning-color: #ca8a04;
+    --danger-color: #dc2626;
+    --text-color: #1f2937;
+    --text-muted: #6b7280;
+    --bg-color: #f9fafb;
+    --card-bg: #ffffff;
+    --border-color: #e5e7eb;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.modal-large {
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.modal h2 {
+    margin-bottom: 1rem;
+}
+
+.modal input[type="password"] {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.modal button[type="submit"] {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.modal button[type="submit"]:hover {
+    background: var(--primary-dark);
+}
+
+.close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.error {
+    color: var(--danger-color);
+    margin-top: 0.5rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Header */
+header {
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem 2rem;
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+/* Main */
+main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+section {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+section h2 {
+    margin-bottom: 1rem;
+    color: var(--text-color);
+    font-size: 1.25rem;
+}
+
+/* Account Balances */
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.account-card {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.account-card .name {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.account-card .balance {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 1rem;
+    border-top: 2px solid var(--border-color);
+    font-size: 1.25rem;
+}
+
+/* Budget Tables */
+.budget-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .budget-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+.budget-column h2 {
+    font-size: 1.1rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+}
+
+.summary-row.remaining {
+    font-weight: 600;
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+}
+
+.budget-table, .dues-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+}
+
+.budget-table th, .budget-table td,
+.dues-table th, .dues-table td {
+    padding: 0.5rem;
+    text-align: right;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.budget-table th:first-child, .budget-table td:first-child,
+.dues-table th:first-child, .dues-table td:first-child {
+    text-align: left;
+}
+
+.budget-table th, .dues-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.positive {
+    color: var(--success-color);
+}
+
+.negative {
+    color: var(--danger-color);
+}
+
+/* Admin Controls */
+.admin-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.control-group {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.control-group h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.control-group input[type="file"] {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Buttons */
+.btn-primary, .btn-secondary {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-secondary {
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+}
+
+/* Download Controls */
+.download-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+/* Review List */
+#review-list {
+    margin-top: 1rem;
+}
+
+.review-item {
+    display: grid;
+    grid-template-columns: 1fr 150px 120px;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+}
+
+.review-item:hover {
+    background: var(--bg-color);
+}
+
+.review-item .description {
+    font-size: 0.875rem;
+}
+
+.review-item .meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.review-item select {
+    padding: 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+    }
+
+    #login-modal,
+    #admin-section,
+    #download-section,
+    #logout-btn,
+    .header-meta button,
+    #review-modal {
+        display: none !important;
+    }
+
+    header {
+        background: none;
+        color: black;
+        border-bottom: 2px solid black;
+    }
+
+    section {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        break-inside: avoid;
+    }
+
+    main {
+        padding: 0;
+    }
+
+    .budget-columns {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Fit on one page */
+    section {
+        margin-bottom: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    h2 {
+        font-size: 1rem !important;
+    }
+
+    .budget-table, .dues-table {
+        font-size: 0.75rem;
+    }
+
+    footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+    }
+}
+
+/* Loading state */
+.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: 'Loading...';
+    display: block;
+    text-align: center;
+    padding: 2rem;
+}
