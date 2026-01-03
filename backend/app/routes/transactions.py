@@ -17,7 +17,7 @@ def handle_list_transactions(query: dict) -> dict:
     Returns:
         Response with transaction list
     """
-    # Build query
+    # Build query - exclude Transfer categories from display
     sql = """
         SELECT t.*,
                c.name as category,
@@ -26,7 +26,7 @@ def handle_list_transactions(query: dict) -> dict:
         FROM transactions t
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN categories ac ON t.auto_category_id = ac.id
-        WHERE 1=1
+        WHERE (c.type IS NULL OR c.type NOT IN ('Transfer', 'Internal'))
     """
     params: list = []
 
@@ -46,15 +46,23 @@ def handle_list_transactions(query: dict) -> dict:
     if query.get('needs_review') == 'true':
         sql += " AND t.needs_review = 1"
 
-    # Count total
-    count_sql = sql.replace("SELECT t.*,", "SELECT COUNT(*) as count")
-    count_sql = count_sql.split("FROM")[0] + "SELECT COUNT(*) as count FROM" + count_sql.split("FROM", 1)[1]
-    # Simplified: just count
-    count_row = database.fetch_one(
-        f"SELECT COUNT(*) as count FROM transactions t WHERE 1=1" +
-        sql.split("WHERE 1=1")[1].split("ORDER BY")[0] if "ORDER BY" in sql else sql.split("WHERE 1=1")[1],
-        tuple(params)
-    )
+    # Count total (using same filters)
+    count_sql = """
+        SELECT COUNT(*) as count
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE (c.type IS NULL OR c.type NOT IN ('Transfer', 'Internal'))
+    """
+    if query.get('year'):
+        count_sql += " AND strftime('%Y', t.post_date) = ?"
+    if query.get('account'):
+        count_sql += " AND t.account_name = ?"
+    if query.get('category_id'):
+        count_sql += " AND t.category_id = ?"
+    if query.get('needs_review') == 'true':
+        count_sql += " AND t.needs_review = 1"
+
+    count_row = database.fetch_one(count_sql, tuple(params))
     total = count_row['count'] if count_row else 0
 
     # Add ordering and pagination
