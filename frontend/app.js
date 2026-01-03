@@ -331,6 +331,110 @@ function renderReviewQueue(transactions) {
     });
 }
 
+// Budget management functions
+async function loadBudgets(year) {
+    try {
+        const response = await apiRequest(`/budgets?year=${year}`);
+        const data = await response.json();
+        renderBudgetTable(data.budgets, year);
+    } catch (e) {
+        showBudgetStatus('Error loading budgets: ' + e.message, 'error');
+    }
+}
+
+function renderBudgetTable(budgets, year) {
+    const tbody = document.getElementById('budget-edit-body');
+
+    if (!budgets || budgets.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">No budgets found for ${year}. Copy from a previous year or add categories.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = budgets.map(b => `
+        <tr data-category-id="${b.category_id}" data-year="${year}">
+            <td>${b.category_name}</td>
+            <td>${b.category_type}</td>
+            <td>
+                <select class="timing-select">
+                    <option value="monthly" ${b.effective_timing === 'monthly' ? 'selected' : ''}>Monthly</option>
+                    <option value="quarterly" ${b.effective_timing === 'quarterly' ? 'selected' : ''}>Quarterly</option>
+                    <option value="annual" ${b.effective_timing === 'annual' ? 'selected' : ''}>Annual</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" class="amount-input" value="${b.annual_amount || 0}" step="0.01" min="0">
+            </td>
+            <td>
+                <button class="btn-primary save-budget-btn">Save</button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Add save handlers
+    tbody.querySelectorAll('.save-budget-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            const categoryId = parseInt(row.dataset.categoryId);
+            const year = parseInt(row.dataset.year);
+            const amount = parseFloat(row.querySelector('.amount-input').value);
+            const timing = row.querySelector('.timing-select').value;
+
+            try {
+                await apiRequest('/budgets', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        year: year,
+                        category_id: categoryId,
+                        annual_amount: amount,
+                        timing: timing
+                    })
+                });
+                showBudgetStatus('Budget saved!', 'success');
+            } catch (e) {
+                showBudgetStatus('Error saving: ' + e.message, 'error');
+            }
+        });
+    });
+}
+
+async function copyBudgets(fromYear, toYear) {
+    try {
+        const response = await apiRequest('/budgets/copy', {
+            method: 'POST',
+            body: JSON.stringify({
+                from_year: fromYear,
+                to_year: toYear
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Copy failed');
+        }
+
+        const data = await response.json();
+        showBudgetStatus(data.message, 'success');
+
+        // Reload the target year
+        document.getElementById('budget-year').value = toYear;
+        await loadBudgets(toYear);
+    } catch (e) {
+        showBudgetStatus('Error copying budgets: ' + e.message, 'error');
+    }
+}
+
+function showBudgetStatus(message, type) {
+    const statusEl = document.getElementById('budget-status');
+    statusEl.textContent = message;
+    statusEl.className = `status-message ${type}`;
+    statusEl.classList.remove('hidden');
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        statusEl.classList.add('hidden');
+    }, 3000);
+}
+
 // Event handlers
 document.addEventListener('DOMContentLoaded', async () => {
     // Check existing auth
@@ -396,5 +500,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('close-review-btn').addEventListener('click', () => {
         document.getElementById('review-modal').classList.add('hidden');
         loadDashboard();  // Refresh counts
+    });
+
+    // Budget management
+    document.getElementById('manage-budgets-btn').addEventListener('click', async () => {
+        const year = parseInt(document.getElementById('budget-year').value);
+        await loadBudgets(year);
+        document.getElementById('budget-modal').classList.remove('hidden');
+    });
+
+    document.getElementById('load-budgets-btn').addEventListener('click', async () => {
+        const year = parseInt(document.getElementById('budget-year').value);
+        await loadBudgets(year);
+    });
+
+    document.getElementById('copy-budgets-btn').addEventListener('click', async () => {
+        const fromYear = parseInt(document.getElementById('copy-from-year').value);
+        const toYear = parseInt(document.getElementById('copy-to-year').value);
+
+        if (fromYear === toYear) {
+            showBudgetStatus('From and To years must be different', 'error');
+            return;
+        }
+
+        if (!confirm(`Copy all budgets from ${fromYear} to ${toYear}? This will overwrite existing ${toYear} budgets.`)) {
+            return;
+        }
+
+        await copyBudgets(fromYear, toYear);
+    });
+
+    document.getElementById('close-budget-btn').addEventListener('click', () => {
+        document.getElementById('budget-modal').classList.add('hidden');
+        loadDashboard();  // Refresh dashboard with any changes
     });
 });
