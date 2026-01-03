@@ -196,7 +196,7 @@ function renderDashboard(data) {
 
     // Income & Dues summary
     const income = data.income_summary;
-    const duesExpected = data.dues_status.reduce((sum, u) => sum + u.expected_annual, 0);
+    const duesExpected = data.dues_status.reduce((sum, u) => sum + u.expected_ytd, 0);
     const duesReceived = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
     const otherIncome = income.ytd_actual - duesReceived;
 
@@ -211,7 +211,7 @@ function renderDashboard(data) {
         <tr>
             <td>${unit.unit}</td>
             <td>${formatPercent(unit.ownership_pct)}</td>
-            <td>${formatCurrency(unit.expected_annual)}</td>
+            <td>${formatCurrency(unit.expected_ytd)}</td>
             <td>${formatCurrency(unit.paid_ytd)}</td>
             <td class="${unit.outstanding > 0 ? 'negative' : 'positive'}">${formatCurrency(unit.outstanding)}</td>
         </tr>

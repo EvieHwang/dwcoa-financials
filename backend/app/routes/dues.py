@@ -4,7 +4,7 @@ import json
 from datetime import date
 from typing import Optional
 
-from app.services import database
+from app.services import database, budget_calc
 
 
 def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = None) -> dict:
@@ -15,7 +15,7 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
         as_of_date: Only include payments on or before this date
 
     Returns:
-        Dict with year, total_budget, and units list
+        Dict with year, total_budget (YTD), and units list
     """
     if not year:
         current_year = database.get_config('current_year')
@@ -24,14 +24,20 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     if as_of_date is None:
         as_of_date = date.today()
 
-    # Get total expense budget (this is the annual amount, not date-filtered)
-    budget_row = database.fetch_one("""
-        SELECT SUM(b.annual_amount) as total
+    # Get YTD expense budget (prorated based on timing patterns)
+    # This matches how Operating Expenses calculates YTD Budget
+    budget_rows = database.fetch_all("""
+        SELECT b.annual_amount, COALESCE(b.timing, c.timing) as timing
         FROM budgets b
         JOIN categories c ON b.category_id = c.id
         WHERE b.year = ? AND c.type = 'Expense'
     """, (year,))
-    total_budget = budget_row['total'] or 0 if budget_row else 0
+
+    total_ytd_budget = 0
+    for row in budget_rows:
+        annual = row['annual_amount'] or 0
+        timing = row['timing'] or 'monthly'
+        total_ytd_budget += budget_calc.calculate_ytd_budget(annual, timing, as_of_date)
 
     # Get units
     units = database.get_units()
@@ -56,21 +62,21 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     # Calculate status for each unit
     unit_status = []
     for unit in units:
-        expected = total_budget * unit['ownership_pct']
+        expected_ytd = total_ytd_budget * unit['ownership_pct']
         paid = dues_by_unit.get(unit['number'], 0)
-        outstanding = expected - paid
+        outstanding = expected_ytd - paid
 
         unit_status.append({
             'unit': unit['number'],
             'ownership_pct': unit['ownership_pct'],
-            'expected_annual': round(expected, 2),
+            'expected_ytd': round(expected_ytd, 2),
             'paid_ytd': round(paid, 2),
             'outstanding': round(outstanding, 2)
         })
 
     return {
         'year': year,
-        'total_budget': round(total_budget, 2),
+        'total_ytd_budget': round(total_ytd_budget, 2),
         'units': unit_status
     }
 
