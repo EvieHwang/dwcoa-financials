@@ -1,41 +1,47 @@
 """Dashboard routes."""
 
 import json
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from app.services import database, budget_calc
 from app.routes import dues
 
 
-def handle_get_dashboard(year: Optional[int] = None) -> dict:
-    """Get dashboard data.
+def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
+    """Get dashboard data as of a specific date.
 
     Args:
-        year: Budget year (defaults to current year)
+        as_of_date: Date string (YYYY-MM-DD) to view snapshot. Defaults to today.
 
     Returns:
-        Response with complete dashboard data
+        Response with complete dashboard data as of the specified date
     """
-    # Default to current year
-    if not year:
-        current_year = database.get_config('current_year')
-        year = int(current_year) if current_year else date.today().year
+    # Parse date or default to today
+    if as_of_date:
+        try:
+            snapshot_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
+        except ValueError:
+            snapshot_date = date.today()
+    else:
+        snapshot_date = date.today()
+
+    year = snapshot_date.year
 
     # Get last upload timestamp
     last_updated = database.get_config('last_upload_at')
 
-    # Get account balances
-    accounts = budget_calc.get_account_balances()
+    # Get account balances as of date
+    accounts = budget_calc.get_account_balances(as_of_date=snapshot_date)
     total_cash = sum(a['balance'] for a in accounts)
 
-    # Get budget summary
-    budget_summary = budget_calc.get_budget_summary(year)
+    # Get budget summary as of date
+    budget_summary = budget_calc.get_budget_summary(year, as_of_date=snapshot_date)
 
-    # Get dues status
-    dues_data = dues.get_dues_status(year)
+    # Get dues status as of date
+    dues_data = dues.get_dues_status(year, as_of_date=snapshot_date)
 
-    # Get review count
+    # Get review count (always current, not date-filtered)
     review_row = database.fetch_one(
         "SELECT COUNT(*) as count FROM transactions WHERE needs_review = 1"
     )
@@ -46,6 +52,7 @@ def handle_get_dashboard(year: Optional[int] = None) -> dict:
         'headers': {'Content-Type': 'application/json'},
         'body': json.dumps({
             'last_updated': last_updated or None,
+            'as_of_date': snapshot_date.isoformat(),
             'year': year,
             'accounts': accounts,
             'total_cash': round(total_cash, 2),

@@ -125,8 +125,8 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
 
     # Dashboard
     if path == '/api/dashboard' and method == 'GET':
-        year = int(query.get('year', 0)) or None
-        return dashboard.handle_get_dashboard(year)
+        as_of_date = query.get('as_of_date') or None
+        return dashboard.handle_get_dashboard(as_of_date)
 
     # Transactions
     if path == '/api/transactions' and method == 'GET':

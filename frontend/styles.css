@@ -131,6 +131,39 @@ header {
     font-size: 0.875rem;
 }
 
+.date-picker-row {
+    max-width: 1200px;
+    margin: 0.75rem auto 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.date-picker-row label {
+    font-weight: 500;
+}
+
+.date-picker-row input[type="date"] {
+    padding: 0.4rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-color);
+}
+
+.date-picker-row button {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+#snapshot-label {
+    font-size: 0.85rem;
+    opacity: 0.9;
+    font-style: italic;
+}
+
 /* Main */
 main {
     max-width: 1200px;

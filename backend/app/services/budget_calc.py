@@ -38,7 +38,7 @@ def calculate_ytd_budget(annual_amount: float, timing: str, as_of_date: date) ->
     return annual_amount
 
 
-def get_ytd_actuals(year: int) -> Dict[int, float]:
+def get_ytd_actuals(year: int, as_of_date: Optional[date] = None) -> Dict[int, float]:
     """Get YTD actual amounts by category for budget comparison.
 
     NOTE: This ONLY includes Income and Expense categories.
@@ -49,12 +49,17 @@ def get_ytd_actuals(year: int) -> Dict[int, float]:
 
     Args:
         year: Year to calculate
+        as_of_date: Only include transactions on or before this date
 
     Returns:
         Dict mapping category_id to actual amount (Income and Expense only)
     """
+    if as_of_date is None:
+        as_of_date = date.today()
+
     # Income = credits, Expenses = debits
     # Transfers excluded - they're not income or expenses
+    # Filter by year AND on or before as_of_date
     sql = """
         SELECT
             t.category_id,
@@ -63,11 +68,12 @@ def get_ytd_actuals(year: int) -> Dict[int, float]:
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
         WHERE strftime('%Y', t.post_date) = ?
+        AND t.post_date <= ?
         AND t.category_id IS NOT NULL
         AND c.type IN ('Income', 'Expense')
         GROUP BY t.category_id
     """
-    rows = database.fetch_all(sql, (str(year),))
+    rows = database.fetch_all(sql, (str(year), as_of_date.isoformat()))
 
     return {row['category_id']: row['amount'] or 0 for row in rows}
 
@@ -80,16 +86,17 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
         as_of_date: Date to calculate YTD (defaults to today)
 
     Returns:
-        Dict with income_summary, expense_summary, and category details
+        Dict with income_summary, expense_summary, and category details.
+        If no budget exists for the year, returns $0 for all budget amounts.
     """
     if as_of_date is None:
         as_of_date = date.today()
 
-    # Get budgets
+    # Get budgets for the year (may be empty if no budget set up)
     budgets = database.get_budgets(year)
 
-    # Get actuals
-    actuals = get_ytd_actuals(year)
+    # Get actuals through as_of_date
+    actuals = get_ytd_actuals(year, as_of_date=as_of_date)
 
     # Process income
     income_categories = []
@@ -148,36 +155,59 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     }
 
 
-def get_account_balances() -> List[dict]:
-    """Get current balance for each account.
+def get_account_balances(as_of_date: Optional[date] = None) -> List[dict]:
+    """Get balance for each account as of a specific date.
 
     NOTE: Account balances include ALL transactions (including transfers).
     We use the balance column from the CSV which the bank calculates,
     not a calculated sum of debits/credits. This ensures transfers
     between accounts are properly reflected in each account's balance.
 
+    Args:
+        as_of_date: Get balance as of this date. Defaults to most recent.
+
     Returns:
         List of account dicts with name and balance
     """
-    # Get most recent balance for each account by date (and id as tiebreaker)
-    # No category filtering - all transactions affect account balances
-    sql = """
-        SELECT t.account_name as name, t.balance
-        FROM transactions t
-        INNER JOIN (
-            SELECT account_name, MAX(post_date) as max_date
-            FROM transactions
-            GROUP BY account_name
-        ) latest ON t.account_name = latest.account_name
-                 AND t.post_date = latest.max_date
-        WHERE t.id = (
-            SELECT MAX(id) FROM transactions t2
-            WHERE t2.account_name = t.account_name
-            AND t2.post_date = latest.max_date
-        )
-        ORDER BY t.account_name
-    """
-    rows = database.fetch_all(sql)
+    if as_of_date is None:
+        # Get most recent balance for each account (no date filter)
+        sql = """
+            SELECT t.account_name as name, t.balance
+            FROM transactions t
+            INNER JOIN (
+                SELECT account_name, MAX(post_date) as max_date
+                FROM transactions
+                GROUP BY account_name
+            ) latest ON t.account_name = latest.account_name
+                     AND t.post_date = latest.max_date
+            WHERE t.id = (
+                SELECT MAX(id) FROM transactions t2
+                WHERE t2.account_name = t.account_name
+                AND t2.post_date = latest.max_date
+            )
+            ORDER BY t.account_name
+        """
+        rows = database.fetch_all(sql)
+    else:
+        # Get balance as of specific date (most recent transaction on or before date)
+        sql = """
+            SELECT t.account_name as name, t.balance
+            FROM transactions t
+            INNER JOIN (
+                SELECT account_name, MAX(post_date) as max_date
+                FROM transactions
+                WHERE post_date <= ?
+                GROUP BY account_name
+            ) latest ON t.account_name = latest.account_name
+                     AND t.post_date = latest.max_date
+            WHERE t.id = (
+                SELECT MAX(id) FROM transactions t2
+                WHERE t2.account_name = t.account_name
+                AND t2.post_date = latest.max_date
+            )
+            ORDER BY t.account_name
+        """
+        rows = database.fetch_all(sql, (as_of_date.isoformat(),))
 
     balances = []
     for row in rows:
