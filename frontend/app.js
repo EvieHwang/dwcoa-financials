@@ -529,71 +529,103 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Upload
-    document.getElementById('upload-btn').addEventListener('click', async () => {
-        const fileInput = document.getElementById('csv-file');
-        const statusEl = document.getElementById('upload-status');
+    const uploadBtn = document.getElementById('upload-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', async () => {
+            const fileInput = document.getElementById('csv-file');
+            const statusEl = document.getElementById('upload-status');
 
-        if (!fileInput.files.length) {
-            alert('Please select a CSV file');
-            return;
-        }
+            if (!fileInput || !fileInput.files.length) {
+                alert('Please select a CSV file');
+                return;
+            }
 
-        try {
-            statusEl.textContent = 'Uploading...';
-            const result = await uploadCSV(fileInput.files[0]);
-            statusEl.textContent = `Success! ${result.stats.total_rows} transactions, ${result.stats.needs_review} need review`;
-            await loadDashboard();
-        } catch (e) {
-            statusEl.textContent = 'Error: ' + e.message;
-        }
-    });
+            try {
+                if (statusEl) statusEl.textContent = 'Uploading...';
+                const result = await uploadCSV(fileInput.files[0]);
+                if (statusEl) statusEl.textContent = `Success! ${result.stats.total_rows} transactions, ${result.stats.needs_review} need review`;
+                await loadDashboard();
+            } catch (e) {
+                if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+            }
+        });
+    }
 
     // Downloads
-    document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
-    document.getElementById('download-pdf-btn').addEventListener('click', downloadPDF);
-    document.getElementById('print-btn').addEventListener('click', () => window.print());
+    const downloadCsvBtn = document.getElementById('download-csv-btn');
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    const printBtn = document.getElementById('print-btn');
+
+    if (downloadCsvBtn) downloadCsvBtn.addEventListener('click', downloadCSV);
+    if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', downloadPDF);
+    if (printBtn) printBtn.addEventListener('click', () => window.print());
 
     // Review
-    document.getElementById('review-btn').addEventListener('click', async () => {
-        await loadReviewQueue();
-        document.getElementById('review-modal').classList.remove('hidden');
-    });
+    const reviewBtn = document.getElementById('review-btn');
+    if (reviewBtn) {
+        reviewBtn.addEventListener('click', async () => {
+            await loadReviewQueue();
+            const reviewModal = document.getElementById('review-modal');
+            if (reviewModal) reviewModal.classList.remove('hidden');
+        });
+    }
 
-    document.getElementById('close-review-btn').addEventListener('click', () => {
-        document.getElementById('review-modal').classList.add('hidden');
-        loadDashboard();  // Refresh counts
-    });
+    const closeReviewBtn = document.getElementById('close-review-btn');
+    if (closeReviewBtn) {
+        closeReviewBtn.addEventListener('click', () => {
+            document.getElementById('review-modal').classList.add('hidden');
+            loadDashboard();  // Refresh counts
+        });
+    }
 
     // Budget management
-    document.getElementById('manage-budgets-btn').addEventListener('click', async () => {
-        const year = parseInt(document.getElementById('budget-year').value);
-        await loadBudgets(year);
-        document.getElementById('budget-modal').classList.remove('hidden');
-    });
+    const manageBudgetsBtn = document.getElementById('manage-budgets-btn');
+    const loadBudgetsBtn = document.getElementById('load-budgets-btn');
+    const copyBudgetsBtn = document.getElementById('copy-budgets-btn');
+    const closeBudgetBtn = document.getElementById('close-budget-btn');
+    const budgetYearEl = document.getElementById('budget-year');
 
-    document.getElementById('load-budgets-btn').addEventListener('click', async () => {
-        const year = parseInt(document.getElementById('budget-year').value);
-        await loadBudgets(year);
-    });
+    if (manageBudgetsBtn && budgetYearEl) {
+        manageBudgetsBtn.addEventListener('click', async () => {
+            const year = parseInt(budgetYearEl.value);
+            await loadBudgets(year);
+            document.getElementById('budget-modal').classList.remove('hidden');
+        });
+    }
 
-    document.getElementById('copy-budgets-btn').addEventListener('click', async () => {
-        const fromYear = parseInt(document.getElementById('copy-from-year').value);
-        const toYear = parseInt(document.getElementById('copy-to-year').value);
+    if (loadBudgetsBtn && budgetYearEl) {
+        loadBudgetsBtn.addEventListener('click', async () => {
+            const year = parseInt(budgetYearEl.value);
+            await loadBudgets(year);
+        });
+    }
 
-        if (fromYear === toYear) {
-            showBudgetStatus('From and To years must be different', 'error');
-            return;
-        }
+    if (copyBudgetsBtn) {
+        copyBudgetsBtn.addEventListener('click', async () => {
+            const copyFromEl = document.getElementById('copy-from-year');
+            const copyToEl = document.getElementById('copy-to-year');
+            if (!copyFromEl || !copyToEl) return;
 
-        if (!confirm(`Copy all budgets from ${fromYear} to ${toYear}? This will overwrite existing ${toYear} budgets.`)) {
-            return;
-        }
+            const fromYear = parseInt(copyFromEl.value);
+            const toYear = parseInt(copyToEl.value);
 
-        await copyBudgets(fromYear, toYear);
-    });
+            if (fromYear === toYear) {
+                showBudgetStatus('From and To years must be different', 'error');
+                return;
+            }
 
-    document.getElementById('close-budget-btn').addEventListener('click', () => {
-        document.getElementById('budget-modal').classList.add('hidden');
-        loadDashboard();  // Refresh dashboard with any changes
-    });
+            if (!confirm(`Copy all budgets from ${fromYear} to ${toYear}? This will overwrite existing ${toYear} budgets.`)) {
+                return;
+            }
+
+            await copyBudgets(fromYear, toYear);
+        });
+    }
+
+    if (closeBudgetBtn) {
+        closeBudgetBtn.addEventListener('click', () => {
+            document.getElementById('budget-modal').classList.add('hidden');
+            loadDashboard();  // Refresh dashboard with any changes
+        });
+    }
 });
