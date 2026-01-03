@@ -259,14 +259,14 @@ section h2 {
 }
 
 .account-card .name {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    color: var(--text-color);
+    color: var(--text-muted);
     margin-bottom: 0.25rem;
 }
 
 .account-card .balance {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
 }
 
@@ -282,11 +282,11 @@ section h2 {
 }
 
 .reserve-values .balance {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
 }
 
 .reserve-values .ytd-change {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
 }
 
@@ -301,7 +301,7 @@ section h2 {
 /* Income & Dues Section */
 .income-grid, .expense-grid {
     display: grid;
-    grid-template-columns: 180px 1fr;
+    grid-template-columns: 250px 1fr;
     gap: 1.5rem;
     align-items: start;
 }
@@ -316,34 +316,47 @@ section h2 {
     background: var(--bg-color);
     padding: 1rem;
     border-radius: 4px;
+    width: 250px;
 }
 
 /* Compact tables for both sections */
 .dues-table.compact, .budget-table.compact {
     font-size: 0.8rem;
+    table-layout: fixed;
+    width: 100%;
 }
 
 .dues-table.compact th, .dues-table.compact td,
 .budget-table.compact th, .budget-table.compact td {
     padding: 0.35rem 0.5rem;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* First column (Unit/Category) takes remaining space */
-.dues-table.compact th:first-child,
-.dues-table.compact td:first-child,
+/* Dues table: 5 equal columns */
+.dues-table.compact th,
+.dues-table.compact td {
+    width: 20%;
+}
+
+/* Expense table: Category = 2 columns width, others equal */
 .budget-table.compact th:first-child,
 .budget-table.compact td:first-child {
+    width: 40%;
     white-space: normal;
 }
 
-/* Align numeric columns */
-.dues-table.compact th:nth-child(n+3),
-.dues-table.compact td:nth-child(n+3),
 .budget-table.compact th:nth-child(n+2),
 .budget-table.compact td:nth-child(n+2) {
+    width: 20%;
     text-align: right;
-    width: 80px;
+}
+
+/* Align numeric columns in dues table */
+.dues-table.compact th:nth-child(n+3),
+.dues-table.compact td:nth-child(n+3) {
+    text-align: right;
 }
 
 /* Budget Tables */
@@ -399,14 +412,28 @@ section h2 {
 /* Admin Controls */
 .admin-buttons {
     display: flex;
-    gap: 1.5rem;
-    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .admin-btn-group {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+.admin-btn-group.upload-group {
+    width: 220px;
+}
+
+.admin-btn-group.review-group {
+    flex: 1;
+    justify-content: center;
+}
+
+.admin-btn-group.budget-group {
+    width: 220px;
+    justify-content: flex-end;
 }
 
 .btn-admin {
@@ -417,6 +444,7 @@ section h2 {
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .btn-admin:hover {
@@ -432,9 +460,24 @@ section h2 {
     background: #9ca3af;
 }
 
+.btn-admin.btn-wide {
+    min-width: 220px;
+}
+
+#choose-file-btn {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#upload-btn {
+    flex-shrink: 0;
+}
+
 #upload-status {
     font-size: 0.85rem;
     color: var(--text-muted);
+    margin-left: 0.5rem;
 }
 
 /* Buttons */

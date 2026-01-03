@@ -238,7 +238,7 @@ function renderDashboard(data) {
     // Review button - show count and gray out if zero
     const reviewBtn = document.getElementById('review-btn');
     if (reviewBtn) {
-        reviewBtn.textContent = `Review (${data.review_count})`;
+        reviewBtn.textContent = `Review Transactions (${data.review_count})`;
         if (data.review_count === 0) {
             reviewBtn.classList.add('grayed');
         } else {

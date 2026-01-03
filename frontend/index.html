@@ -140,19 +140,19 @@
             <section id="admin-section" class="admin-only hidden">
                 <h2>Admin Controls</h2>
                 <div class="admin-buttons">
-                    <div class="admin-btn-group">
+                    <div class="admin-btn-group upload-group">
                         <input type="file" id="csv-file" accept=".csv" class="hidden">
                         <button id="choose-file-btn" class="btn-admin">Choose File</button>
                         <button id="upload-btn" class="btn-admin" disabled>Upload</button>
-                        <span id="upload-status"></span>
                     </div>
-                    <div class="admin-btn-group">
-                        <button id="review-btn" class="btn-admin">Review (0)</button>
+                    <div class="admin-btn-group review-group">
+                        <button id="review-btn" class="btn-admin btn-wide">Review Transactions (0)</button>
                     </div>
-                    <div class="admin-btn-group">
-                        <button id="manage-budgets-btn" class="btn-admin">Manage Budgets</button>
+                    <div class="admin-btn-group budget-group">
+                        <button id="manage-budgets-btn" class="btn-admin btn-wide">Manage Budgets</button>
                     </div>
                 </div>
+                <span id="upload-status"></span>
             </section>
 
         </main>
