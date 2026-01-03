@@ -830,9 +830,19 @@ let transactionsTable = null;
 async function loadTransactions() {
     try {
         // Get all transactions (no pagination from server, let Tabulator handle it)
+        console.log('Fetching transactions from API...');
         const response = await apiRequest('/transactions?limit=10000');
+        console.log('Transactions API response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Transactions API error:', response.status, errorData);
+            return [];
+        }
+
         const data = await response.json();
-        return data.transactions;
+        console.log('Loaded transactions:', data.transactions?.length || 0, 'total:', data.total);
+        return data.transactions || [];
     } catch (e) {
         console.error('Failed to load transactions:', e);
         return [];
@@ -840,9 +850,30 @@ async function loadTransactions() {
 }
 
 async function initTransactionsTable() {
-    const transactions = await loadTransactions();
+    const tableEl = document.getElementById('transactions-table');
+    if (!tableEl) {
+        console.error('Transactions table element not found');
+        return;
+    }
 
-    transactionsTable = new Tabulator("#transactions-table", {
+    // Show loading state
+    tableEl.innerHTML = '<p style="padding: 1rem; color: #666;">Loading transactions...</p>';
+
+    try {
+        const transactions = await loadTransactions();
+        console.log('Initializing Tabulator with', transactions.length, 'transactions');
+
+        if (typeof Tabulator === 'undefined') {
+            tableEl.innerHTML = '<p class="error">Error: Tabulator library not loaded. Check browser console.</p>';
+            return;
+        }
+
+        if (!transactions || transactions.length === 0) {
+            tableEl.innerHTML = '<p style="padding: 1rem; color: #666;">No transactions found. Upload a CSV file to see transaction history.</p>';
+            return;
+        }
+
+        transactionsTable = new Tabulator("#transactions-table", {
         data: transactions,
         layout: "fitColumns",
         responsiveLayout: "collapse",
@@ -855,7 +886,10 @@ async function initTransactionsTable() {
             {
                 title: "Post Date",
                 field: "post_date",
-                sorter: "date",
+                sorter: function(a, b) {
+                    // Simple string comparison works for YYYY-MM-DD format
+                    return a.localeCompare(b);
+                },
                 headerFilter: "input",
                 width: 120
             },
@@ -887,8 +921,11 @@ async function initTransactionsTable() {
                 field: "debit",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: "money",
-                formatterParams: { symbol: "$", precision: 2 },
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    if (val === null || val === undefined || val === '' || val === 0) return '';
+                    return formatCurrency(val);
+                },
                 width: 110
             },
             {
@@ -896,12 +933,19 @@ async function initTransactionsTable() {
                 field: "credit",
                 sorter: "number",
                 hozAlign: "right",
-                formatter: "money",
-                formatterParams: { symbol: "$", precision: 2 },
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    if (val === null || val === undefined || val === '' || val === 0) return '';
+                    return formatCurrency(val);
+                },
                 width: 110
             }
         ]
     });
+    } catch (e) {
+        console.error('Error initializing transactions table:', e);
+        tableEl.innerHTML = `<p class="error">Error loading transactions: ${e.message}</p>`;
+    }
 }
 
 function exportFilteredTransactions() {
