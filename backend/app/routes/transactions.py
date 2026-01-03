@@ -8,6 +8,34 @@ from typing import Any
 from app.services import database, csv_processor, categorizer
 
 
+def is_duplicate(conn, post_date: str, account_number: str, description: str,
+                 debit: float, credit: float, balance: float) -> bool:
+    """Check if a transaction already exists.
+
+    Args:
+        conn: Database connection
+        post_date: Transaction post date
+        account_number: Account number
+        description: Transaction description
+        debit: Debit amount (may be None)
+        credit: Credit amount (may be None)
+        balance: Running balance
+
+    Returns:
+        True if duplicate exists
+    """
+    row = conn.execute("""
+        SELECT id FROM transactions
+        WHERE post_date = ?
+        AND account_number = ?
+        AND description = ?
+        AND (debit = ? OR (debit IS NULL AND ? IS NULL))
+        AND (credit = ? OR (credit IS NULL AND ? IS NULL))
+        AND balance = ?
+    """, (post_date, account_number, description, debit, debit, credit, credit, balance)).fetchone()
+    return row is not None
+
+
 def handle_list_transactions(query: dict) -> dict:
     """List transactions with optional filters.
 
@@ -144,55 +172,57 @@ def handle_upload(event_body: dict, raw_body: str = '') -> dict:
                 })
             }
 
+        # Check if replace_all mode is requested
+        replace_all = event_body.get('replace_all', False)
+
         # Process transactions
         with database.transaction() as conn:
-            # Clear existing transactions
-            conn.execute("DELETE FROM transactions")
+            # Only clear existing transactions if replace_all is True
+            if replace_all:
+                conn.execute("DELETE FROM transactions")
 
             # Get category mapping for pre-categorized items
             categories = {c['name']: c['id'] for c in database.get_categories()}
 
             # Stats
             stats = {
-                'total_rows': len(result.transactions),
+                'added': 0,
+                'skipped': 0,
                 'categorized': 0,
-                'needs_review': 0,
-                'uncategorized': 0
+                'needs_review': 0
             }
 
-            # Prepare transactions for categorization
-            txn_dicts = []
+            # Process each transaction
             for txn in result.transactions:
-                txn_dicts.append({
-                    'account_number': txn.account_number,
-                    'account_name': txn.account_name,
-                    'post_date': txn.post_date,
-                    'check_number': txn.check_number,
-                    'description': txn.description,
-                    'debit': txn.debit,
-                    'credit': txn.credit,
-                    'status': txn.status,
-                    'balance': txn.balance,
-                    'existing_category': txn.category
-                })
+                # Check for duplicate (skip if already exists)
+                if not replace_all and is_duplicate(
+                    conn,
+                    txn.post_date,
+                    txn.account_number,
+                    txn.description,
+                    txn.debit,
+                    txn.credit,
+                    txn.balance
+                ):
+                    stats['skipped'] += 1
+                    continue
 
-            # Categorize transactions
-            for txn in txn_dicts:
+                # Categorize new transaction
                 category_id = None
                 auto_category_id = None
                 confidence = None
                 needs_review = False
 
-                # Check for pre-existing category
-                if txn['existing_category'] and txn['existing_category'] in categories:
-                    category_id = categories[txn['existing_category']]
+                # Check for pre-existing category in CSV
+                if txn.category and txn.category in categories:
+                    category_id = categories[txn.category]
                     confidence = 100
                     stats['categorized'] += 1
                 else:
                     # Auto-categorize
                     cat_result = categorizer.categorize_transaction(
-                        txn['description'],
-                        txn['account_name']
+                        txn.description,
+                        txn.account_name
                     )
                     auto_category_id = cat_result.category_id
                     confidence = cat_result.confidence
@@ -203,8 +233,6 @@ def handle_upload(event_body: dict, raw_body: str = '') -> dict:
                         stats['categorized'] += 1
                     elif cat_result.needs_review:
                         stats['needs_review'] += 1
-                    else:
-                        stats['uncategorized'] += 1
 
                 # Insert transaction
                 conn.execute("""
@@ -214,20 +242,21 @@ def handle_upload(event_body: dict, raw_body: str = '') -> dict:
                         category_id, auto_category_id, confidence, needs_review
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    txn['account_number'],
-                    txn['account_name'],
-                    txn['post_date'],
-                    txn['check_number'],
-                    txn['description'],
-                    txn['debit'],
-                    txn['credit'],
-                    txn['status'],
-                    txn['balance'],
+                    txn.account_number,
+                    txn.account_name,
+                    txn.post_date,
+                    txn.check_number,
+                    txn.description,
+                    txn.debit,
+                    txn.credit,
+                    txn.status,
+                    txn.balance,
                     category_id,
                     auto_category_id,
                     confidence,
                     1 if needs_review else 0
                 ))
+                stats['added'] += 1
 
             # Update last upload timestamp
             database.set_config('last_upload_at', datetime.now().isoformat())
@@ -320,10 +349,6 @@ def handle_update(transaction_id: int, body: dict) -> dict:
         updates.append("category_id = ?")
         params.append(body['category_id'])
 
-        # Learn pattern if manually categorized
-        if body['category_id']:
-            categorizer.learn_pattern(txn['description'], body['category_id'])
-
     if 'needs_review' in body:
         updates.append("needs_review = ?")
         params.append(1 if body['needs_review'] else 0)
@@ -373,7 +398,7 @@ def handle_review_queue() -> dict:
         LEFT JOIN categories c ON t.category_id = c.id
         LEFT JOIN categories ac ON t.auto_category_id = ac.id
         WHERE t.needs_review = 1
-        ORDER BY t.post_date DESC
+        ORDER BY t.description ASC, t.post_date DESC
         LIMIT 100
     """)
 

@@ -37,6 +37,12 @@ function formatDate(dateStr) {
     }) + ' PT';
 }
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Chart colors
 const CHART_COLORS = {
     budget: 'rgba(37, 99, 235, 0.8)',      // Blue
@@ -386,7 +392,8 @@ function renderDashboard(data) {
     document.getElementById('dues-actual').textContent = formatCurrency(duesActual);
     const duesRemainingEl = document.getElementById('dues-remaining');
     duesRemainingEl.textContent = formatCurrency(duesRemaining);
-    duesRemainingEl.className = duesRemaining >= 0 ? 'positive' : 'negative';
+    // For income: negative remaining (surplus) = green, positive remaining (shortfall) = red
+    duesRemainingEl.className = duesRemaining <= 0 ? 'positive' : 'negative';
 
     // Dues table (compact)
     const duesTable = document.querySelector('#dues-table tbody');
@@ -434,10 +441,7 @@ function renderDashboard(data) {
 }
 
 // Upload functions
-async function uploadCSV(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-
+async function uploadCSV(file, replaceAll = false) {
     // Read file as text for JSON body
     const text = await file.text();
 
@@ -446,7 +450,7 @@ async function uploadCSV(file) {
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ file: text })
+        body: JSON.stringify({ file: text, replace_all: replaceAll })
     });
 
     if (!response.ok) {
@@ -517,9 +521,9 @@ function renderReviewQueue(transactions) {
         .join('');
 
     reviewList.innerHTML = transactions.map(txn => `
-        <div class="review-item" data-id="${txn.id}">
+        <div class="review-item" data-id="${txn.id}" data-description="${escapeHtml(txn.description)}">
             <div>
-                <div class="description">${txn.description}</div>
+                <div class="description">${escapeHtml(txn.description)}</div>
                 <div class="meta">${txn.account_name} | ${txn.post_date} | ${formatCurrency(txn.credit || txn.debit)}</div>
                 ${txn.auto_category ? `<div class="meta">Suggested: ${txn.auto_category} (${txn.confidence}%)</div>` : ''}
             </div>
@@ -527,11 +531,14 @@ function renderReviewQueue(transactions) {
                 <option value="">Select category...</option>
                 ${categoryOptions}
             </select>
-            <button class="btn-primary save-category-btn">Save</button>
+            <div class="review-actions">
+                <button class="btn-primary save-category-btn">Save</button>
+                <button class="btn-secondary create-rule-btn">Create Rule</button>
+            </div>
         </div>
     `).join('');
 
-    // Add event listeners
+    // Add event listeners for Save button
     reviewList.querySelectorAll('.save-category-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const item = e.target.closest('.review-item');
@@ -561,6 +568,87 @@ function renderReviewQueue(transactions) {
             } catch (e) {
                 alert('Failed to save: ' + e.message);
             }
+        });
+    });
+
+    // Add event listeners for Create Rule button
+    reviewList.querySelectorAll('.create-rule-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const item = e.target.closest('.review-item');
+            const description = item.dataset.description;
+            const categorySelect = item.querySelector('.category-select');
+            const selectedCategoryId = categorySelect.value;
+
+            // Check if a category is selected
+            if (!selectedCategoryId) {
+                alert('Please select a category first');
+                return;
+            }
+
+            // Check if form already exists
+            if (item.querySelector('.create-rule-form')) {
+                return;
+            }
+
+            // Create inline form
+            const form = document.createElement('div');
+            form.className = 'create-rule-form';
+            form.innerHTML = `
+                <input type="text" class="rule-pattern-input" value="${escapeHtml(description)}" placeholder="Match string...">
+                <select class="rule-category-select">
+                    ${categoryOptions}
+                </select>
+                <button class="btn-primary save-rule-btn">Save Rule</button>
+                <button class="btn-secondary cancel-rule-btn">Cancel</button>
+            `;
+
+            // Set selected category
+            form.querySelector('.rule-category-select').value = selectedCategoryId;
+
+            item.appendChild(form);
+
+            // Focus pattern input
+            form.querySelector('.rule-pattern-input').focus();
+
+            // Save rule handler
+            form.querySelector('.save-rule-btn').addEventListener('click', async () => {
+                const pattern = form.querySelector('.rule-pattern-input').value.trim();
+                const categoryId = parseInt(form.querySelector('.rule-category-select').value);
+
+                if (!pattern) {
+                    alert('Pattern cannot be empty');
+                    return;
+                }
+
+                try {
+                    // Create the rule
+                    await createRule(pattern, categoryId);
+
+                    // Also categorize the current transaction
+                    await apiRequest(`/transactions/${item.dataset.id}`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            category_id: categoryId,
+                            needs_review: false
+                        })
+                    });
+
+                    // Remove item from queue
+                    item.remove();
+
+                    // Check if queue is empty
+                    if (reviewList.children.length === 0) {
+                        reviewList.innerHTML = '<p>All transactions reviewed!</p>';
+                    }
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                }
+            });
+
+            // Cancel handler
+            form.querySelector('.cancel-rule-btn').addEventListener('click', () => {
+                form.remove();
+            });
         });
     });
 }
@@ -801,13 +889,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         uploadBtn.addEventListener('click', async () => {
             if (!fileInput || !fileInput.files.length) return;
 
+            // Check if replace all is requested
+            const replaceAllCheckbox = document.getElementById('replace-all-checkbox');
+            const replaceAll = replaceAllCheckbox && replaceAllCheckbox.checked;
+
+            // Confirm if replacing all data
+            if (replaceAll) {
+                if (!confirm('This will delete all existing transactions and their categories. Are you sure?')) {
+                    return;
+                }
+            }
+
             try {
                 if (statusEl) statusEl.textContent = 'Uploading...';
                 uploadBtn.disabled = true;
-                const result = await uploadCSV(fileInput.files[0]);
-                if (statusEl) statusEl.textContent = `${result.stats.total_rows} rows, ${result.stats.needs_review} need review`;
+                const result = await uploadCSV(fileInput.files[0], replaceAll);
+
+                // Update status with new format
+                if (statusEl) {
+                    const msg = `Added ${result.stats.added} new, skipped ${result.stats.skipped} duplicates`;
+                    statusEl.textContent = result.stats.needs_review > 0
+                        ? `${msg} (${result.stats.needs_review} need review)`
+                        : msg;
+                }
+
                 fileInput.value = '';
                 chooseFileBtn.textContent = 'Choose File';
+                if (replaceAllCheckbox) replaceAllCheckbox.checked = false;
                 await loadDashboard();
                 // Refresh transactions table
                 if (transactionsTable) {
@@ -908,6 +1016,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (addCategoryBtn) {
         addCategoryBtn.addEventListener('click', () => {
             addNewCategoryRow();
+        });
+    }
+
+    // Rules management
+    const manageRulesBtn = document.getElementById('manage-rules-btn');
+    const closeRulesBtn = document.getElementById('close-rules-btn');
+    const addRuleBtn = document.getElementById('add-rule-btn');
+
+    if (manageRulesBtn) {
+        manageRulesBtn.addEventListener('click', async () => {
+            // Load categories first if not loaded
+            if (categories.length === 0) {
+                const catResponse = await apiRequest('/categories');
+                const catData = await catResponse.json();
+                categories = catData.categories;
+            }
+            await loadRules();
+            document.getElementById('rules-modal').classList.remove('hidden');
+        });
+    }
+
+    if (closeRulesBtn) {
+        closeRulesBtn.addEventListener('click', () => {
+            document.getElementById('rules-modal').classList.add('hidden');
+            loadDashboard();  // Refresh dashboard (review count may have changed)
+        });
+    }
+
+    if (addRuleBtn) {
+        addRuleBtn.addEventListener('click', async () => {
+            const patternInput = document.getElementById('new-rule-pattern');
+            const categorySelect = document.getElementById('new-rule-category');
+
+            const pattern = patternInput.value.trim();
+            const categoryId = parseInt(categorySelect.value);
+
+            if (!pattern) {
+                showRulesStatus('Please enter a match string', 'error');
+                return;
+            }
+
+            try {
+                await createRule(pattern, categoryId);
+                showRulesStatus('Rule created!', 'success');
+                patternInput.value = '';
+                await loadRules();  // Refresh the table
+            } catch (e) {
+                showRulesStatus('Error: ' + e.message, 'error');
+            }
         });
     }
 });
@@ -1042,6 +1199,9 @@ async function initTransactionsTable() {
         return;
     }
 
+    // Check if user is admin for inline editing
+    const isAdmin = userRole === 'admin';
+
     // Show loading state
     tableEl.innerHTML = '<p style="padding: 1rem; color: #666;">Loading transactions...</p>';
 
@@ -1058,6 +1218,23 @@ async function initTransactionsTable() {
             tableEl.innerHTML = '<p style="padding: 1rem; color: #666;">No transactions found. Upload a CSV file to see transaction history.</p>';
             return;
         }
+
+        // Load categories if not already loaded (for admin inline editing)
+        if (isAdmin && categories.length === 0) {
+            const catResponse = await apiRequest('/categories');
+            const catData = await catResponse.json();
+            categories = catData.categories;
+        }
+
+        // Build category options for dropdown editor (admin only)
+        const categoryEditorParams = {
+            values: categories
+                .filter(c => c.active)
+                .reduce((acc, c) => {
+                    acc[c.name] = c.name;
+                    return acc;
+                }, { '': '(Uncategorized)' })
+        };
 
         transactionsTable = new Tabulator("#transactions-table", {
         data: transactions,
@@ -1093,8 +1270,36 @@ async function initTransactionsTable() {
                 headerFilter: "input",
                 formatter: function(cell) {
                     const val = cell.getValue();
-                    return val || '<span class="uncategorized">Uncategorized</span>';
-                }
+                    if (!val) return '<span class="uncategorized">Uncategorized</span>';
+                    return isAdmin ? `<span class="editable-cell">${escapeHtml(val)}</span>` : escapeHtml(val);
+                },
+                editor: isAdmin ? "list" : false,
+                editorParams: isAdmin ? categoryEditorParams : {},
+                cellEdited: isAdmin ? async function(cell) {
+                    const row = cell.getRow();
+                    const txnId = row.getData().id;
+                    const newCategory = cell.getValue();
+
+                    // Find category ID from name
+                    const category = categories.find(c => c.name === newCategory);
+                    const categoryId = category ? category.id : null;
+
+                    try {
+                        await apiRequest(`/transactions/${txnId}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ category_id: categoryId, needs_review: false })
+                        });
+
+                        // Flash row green to confirm save
+                        const rowEl = row.getElement();
+                        rowEl.classList.add('row-saved');
+                        setTimeout(() => rowEl.classList.remove('row-saved'), 1000);
+                    } catch (e) {
+                        alert('Failed to save: ' + e.message);
+                        // Revert to old value
+                        cell.restoreOldValue();
+                    }
+                } : undefined
             },
             {
                 title: "Description",
@@ -1138,4 +1343,146 @@ function exportFilteredTransactions() {
     if (transactionsTable) {
         transactionsTable.download("csv", "dwcoa_transactions_filtered.csv");
     }
+}
+
+// Rules Management
+async function loadRules() {
+    try {
+        const response = await apiRequest('/rules');
+        const data = await response.json();
+        renderRulesTable(data.rules);
+
+        // Populate category dropdown for new rules
+        const catResponse = await apiRequest('/categories');
+        const catData = await catResponse.json();
+        const categorySelect = document.getElementById('new-rule-category');
+        if (categorySelect) {
+            categorySelect.innerHTML = categories
+                .filter(c => c.active)
+                .map(c => `<option value="${c.id}">${c.name}</option>`)
+                .join('');
+        }
+    } catch (e) {
+        showRulesStatus('Error loading rules: ' + e.message, 'error');
+    }
+}
+
+function renderRulesTable(rules) {
+    const tbody = document.getElementById('rules-body');
+
+    if (!rules || rules.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3">No rules configured. Add rules to auto-categorize transactions.</td></tr>';
+        return;
+    }
+
+    // Build category options
+    const categoryOptions = categories
+        .filter(c => c.active)
+        .map(c => `<option value="${c.id}">${c.name}</option>`)
+        .join('');
+
+    tbody.innerHTML = rules.map(rule => `
+        <tr data-rule-id="${rule.id}">
+            <td>
+                <input type="text" class="pattern-input" value="${escapeHtml(rule.pattern)}">
+            </td>
+            <td>
+                <select class="category-select">
+                    ${categoryOptions}
+                </select>
+            </td>
+            <td class="action-buttons">
+                <button class="btn-primary save-rule-btn">Save</button>
+                <button class="btn-secondary delete-rule-btn">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Set selected category for each rule
+    rules.forEach(rule => {
+        const row = tbody.querySelector(`tr[data-rule-id="${rule.id}"]`);
+        if (row) {
+            const select = row.querySelector('.category-select');
+            if (select) select.value = rule.category_id;
+        }
+    });
+
+    // Add save handlers
+    tbody.querySelectorAll('.save-rule-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            const ruleId = parseInt(row.dataset.ruleId);
+            const pattern = row.querySelector('.pattern-input').value.trim();
+            const categoryId = parseInt(row.querySelector('.category-select').value);
+
+            if (!pattern) {
+                showRulesStatus('Pattern cannot be empty', 'error');
+                return;
+            }
+
+            try {
+                await apiRequest(`/rules/${ruleId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ pattern, category_id: categoryId })
+                });
+                showRulesStatus('Rule saved!', 'success');
+            } catch (e) {
+                showRulesStatus('Error saving: ' + e.message, 'error');
+            }
+        });
+    });
+
+    // Add delete handlers
+    tbody.querySelectorAll('.delete-rule-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            const ruleId = parseInt(row.dataset.ruleId);
+            const pattern = row.querySelector('.pattern-input').value;
+
+            if (!confirm(`Delete rule "${pattern}"? Transactions using this category will be flagged for review.`)) {
+                return;
+            }
+
+            try {
+                const response = await apiRequest(`/rules/${ruleId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                showRulesStatus(`Rule deleted. ${data.affected_transactions} transactions flagged for review.`, 'success');
+                row.remove();
+
+                // Check if table is empty
+                if (tbody.children.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">No rules configured.</td></tr>';
+                }
+            } catch (e) {
+                showRulesStatus('Error deleting: ' + e.message, 'error');
+            }
+        });
+    });
+}
+
+async function createRule(pattern, categoryId) {
+    const response = await apiRequest('/rules', {
+        method: 'POST',
+        body: JSON.stringify({ pattern, category_id: categoryId })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create rule');
+    }
+
+    return await response.json();
+}
+
+function showRulesStatus(message, type) {
+    const statusEl = document.getElementById('rules-status');
+    statusEl.textContent = message;
+    statusEl.className = `status-message ${type}`;
+    statusEl.classList.remove('hidden');
+
+    setTimeout(() => {
+        statusEl.classList.add('hidden');
+    }, 3000);
 }

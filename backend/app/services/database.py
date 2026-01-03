@@ -287,3 +287,146 @@ def get_categorize_rules() -> List[dict]:
         ORDER BY r.priority DESC, r.id
     """
     return rows_to_dicts(fetch_all(sql))
+
+
+def get_rules() -> List[dict]:
+    """Get all rules with category names for admin UI."""
+    sql = """
+        SELECT r.id, r.pattern, r.category_id, r.active, c.name as category_name
+        FROM categorize_rules r
+        JOIN categories c ON r.category_id = c.id
+        ORDER BY c.name, r.pattern
+    """
+    return rows_to_dicts(fetch_all(sql))
+
+
+def get_rule_by_id(rule_id: int) -> Optional[dict]:
+    """Get a rule by ID."""
+    sql = """
+        SELECT r.*, c.name as category_name
+        FROM categorize_rules r
+        JOIN categories c ON r.category_id = c.id
+        WHERE r.id = ?
+    """
+    return row_to_dict(fetch_one(sql, (rule_id,)))
+
+
+def rule_pattern_exists(pattern: str, exclude_id: Optional[int] = None) -> bool:
+    """Check if a pattern already exists (case-insensitive).
+
+    Args:
+        pattern: Pattern to check
+        exclude_id: Rule ID to exclude from check (for updates)
+
+    Returns:
+        True if pattern exists
+    """
+    sql = "SELECT id FROM categorize_rules WHERE UPPER(pattern) = UPPER(?)"
+    params: List[Any] = [pattern]
+
+    if exclude_id:
+        sql += " AND id != ?"
+        params.append(exclude_id)
+
+    return fetch_one(sql, tuple(params)) is not None
+
+
+def create_rule(pattern: str, category_id: int) -> dict:
+    """Create a new categorization rule.
+
+    Args:
+        pattern: Match pattern (case-insensitive substring)
+        category_id: Category ID to assign
+
+    Returns:
+        Created rule dict
+    """
+    with transaction():
+        execute(
+            """INSERT INTO categorize_rules (pattern, category_id, confidence, priority, active)
+               VALUES (?, ?, 100, 100, 1)""",
+            (pattern, category_id)
+        )
+        # Get the created rule
+        cursor = execute("SELECT last_insert_rowid()")
+        rule_id = cursor.fetchone()[0]
+
+    return get_rule_by_id(rule_id)
+
+
+def update_rule(rule_id: int, pattern: Optional[str] = None,
+                category_id: Optional[int] = None, active: Optional[bool] = None) -> Optional[dict]:
+    """Update a categorization rule.
+
+    Args:
+        rule_id: Rule ID
+        pattern: New pattern (optional)
+        category_id: New category ID (optional)
+        active: New active status (optional)
+
+    Returns:
+        Updated rule dict or None if not found
+    """
+    updates = []
+    params: List[Any] = []
+
+    if pattern is not None:
+        updates.append("pattern = ?")
+        params.append(pattern)
+
+    if category_id is not None:
+        updates.append("category_id = ?")
+        params.append(category_id)
+
+    if active is not None:
+        updates.append("active = ?")
+        params.append(1 if active else 0)
+
+    if not updates:
+        return get_rule_by_id(rule_id)
+
+    params.append(rule_id)
+
+    with transaction():
+        execute(f"UPDATE categorize_rules SET {', '.join(updates)} WHERE id = ?", tuple(params))
+
+    return get_rule_by_id(rule_id)
+
+
+def delete_rule(rule_id: int) -> int:
+    """Delete a rule and flag affected transactions for review.
+
+    Args:
+        rule_id: Rule ID to delete
+
+    Returns:
+        Number of transactions flagged for review
+    """
+    # Get the rule's category to find affected transactions
+    rule = get_rule_by_id(rule_id)
+    if not rule:
+        return 0
+
+    affected_count = 0
+
+    with transaction() as conn:
+        # Count transactions that will be affected
+        # (those categorized by this rule's pattern)
+        count_row = conn.execute(
+            """SELECT COUNT(*) as count FROM transactions
+               WHERE category_id = ? AND needs_review = 0""",
+            (rule['category_id'],)
+        ).fetchone()
+        affected_count = count_row['count'] if count_row else 0
+
+        # Flag transactions for review (those using this category that aren't already flagged)
+        conn.execute(
+            """UPDATE transactions SET needs_review = 1
+               WHERE category_id = ? AND needs_review = 0""",
+            (rule['category_id'],)
+        )
+
+        # Delete the rule
+        conn.execute("DELETE FROM categorize_rules WHERE id = ?", (rule_id,))
+
+    return affected_count

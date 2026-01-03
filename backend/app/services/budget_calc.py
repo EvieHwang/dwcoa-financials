@@ -25,10 +25,10 @@ def calculate_ytd_budget(annual_amount: float, timing: str, as_of_date: date) ->
         return (annual_amount / 12) * month
 
     elif timing == 'quarterly':
-        # Quarterly: (annual / 4) * quarters completed
+        # Quarterly: (annual / 4) * quarters through
         # Q1 = months 1-3, Q2 = months 4-6, etc.
-        quarters_complete = (month - 1) // 3
-        return (annual_amount / 4) * quarters_complete
+        quarters_through = ((month - 1) // 3) + 1
+        return (annual_amount / 4) * quarters_through
 
     elif timing == 'annual':
         # Annual: full amount available all year (expense could hit any time)

@@ -10,6 +10,8 @@ from app.services import database, budget_calc
 def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = None) -> dict:
     """Calculate dues status for all units as of a specific date.
 
+    Uses the actual Dues category budgets (not derived from expense budgets).
+
     Args:
         year: Budget year (defaults to current year)
         as_of_date: Only include payments on or before this date
@@ -24,23 +26,25 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     if as_of_date is None:
         as_of_date = date.today()
 
-    # Get YTD expense budget (prorated based on timing patterns)
-    # This matches how Operating Expenses calculates YTD Budget
-    budget_rows = database.fetch_all("""
-        SELECT b.annual_amount, COALESCE(b.timing, c.timing) as timing
-        FROM budgets b
-        JOIN categories c ON b.category_id = c.id
-        WHERE b.year = ? AND c.type = 'Expense'
-    """, (year,))
-
-    total_ytd_budget = 0
-    for row in budget_rows:
-        annual = row['annual_amount'] or 0
-        timing = row['timing'] or 'monthly'
-        total_ytd_budget += budget_calc.calculate_ytd_budget(annual, timing, as_of_date)
-
     # Get units
     units = database.get_units()
+
+    # Get dues budgets directly from the Dues categories (Income type)
+    # These are the actual budgeted amounts, not derived from expenses
+    dues_budget_sql = """
+        SELECT c.name as category, b.annual_amount, COALESCE(b.timing, c.timing) as timing
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        WHERE b.year = ? AND c.name LIKE 'Dues %'
+    """
+    budget_rows = database.fetch_all(dues_budget_sql, (year,))
+    dues_budgets = {}
+    for row in budget_rows:
+        unit_num = row['category'].replace('Dues ', '')
+        annual = row['annual_amount'] or 0
+        timing = row['timing'] or 'monthly'
+        ytd_budget = budget_calc.calculate_ytd_budget(annual, timing, as_of_date)
+        dues_budgets[unit_num] = ytd_budget
 
     # Get dues payments by unit through as_of_date
     dues_sql = """
@@ -55,14 +59,15 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     dues_rows = database.fetch_all(dues_sql, (str(year), as_of_date.isoformat()))
     dues_by_unit = {}
     for row in dues_rows:
-        # Extract unit number from "Dues XXX"
         unit_num = row['category'].replace('Dues ', '')
         dues_by_unit[unit_num] = row['paid'] or 0
 
     # Calculate status for each unit
+    total_ytd_budget = 0
     unit_status = []
     for unit in units:
-        expected_ytd = total_ytd_budget * unit['ownership_pct']
+        expected_ytd = dues_budgets.get(unit['number'], 0)
+        total_ytd_budget += expected_ytd
         paid = dues_by_unit.get(unit['number'], 0)
         outstanding = expected_ytd - paid
 

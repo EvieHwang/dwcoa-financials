@@ -165,17 +165,24 @@
             <!-- Admin Controls -->
             <section id="admin-section" class="admin-only hidden">
                 <h2>Admin Controls</h2>
-                <div class="admin-buttons">
+                <div class="admin-buttons four-columns">
                     <div class="admin-btn-group upload-group">
                         <input type="file" id="csv-file" accept=".csv" class="hidden">
                         <button id="choose-file-btn" class="btn-admin">Choose File</button>
+                        <label class="replace-checkbox">
+                            <input type="checkbox" id="replace-all-checkbox">
+                            Replace all
+                        </label>
                         <button id="upload-btn" class="btn-admin" disabled>Upload</button>
                     </div>
-                    <div class="admin-btn-group review-group">
+                    <div class="admin-btn-group">
                         <button id="review-btn" class="btn-admin btn-wide">Review Transactions (0)</button>
                     </div>
-                    <div class="admin-btn-group budget-group">
+                    <div class="admin-btn-group">
                         <button id="manage-budgets-btn" class="btn-admin btn-wide">Manage Budgets</button>
+                    </div>
+                    <div class="admin-btn-group">
+                        <button id="manage-rules-btn" class="btn-admin btn-wide">Manage Rules</button>
                     </div>
                 </div>
                 <span id="upload-status"></span>
@@ -258,6 +265,35 @@
 
             <div class="add-category-row">
                 <button id="add-category-btn" class="btn-secondary">+ Add Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rules Management Modal -->
+    <div id="rules-modal" class="modal hidden">
+        <div class="modal-content modal-large">
+            <h2>Manage Rules</h2>
+            <button id="close-rules-btn" class="close-btn">&times;</button>
+
+            <p class="rules-description">Rules automatically categorize transactions. When a transaction description contains the match string (case-insensitive), it will be assigned to that category.</p>
+
+            <div id="rules-status" class="status-message hidden"></div>
+
+            <table id="rules-table" class="budget-table">
+                <thead>
+                    <tr>
+                        <th>Match String</th>
+                        <th>Category</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="rules-body"></tbody>
+            </table>
+
+            <div class="add-rule-row">
+                <input type="text" id="new-rule-pattern" placeholder="Match string...">
+                <select id="new-rule-category"></select>
+                <button id="add-rule-btn" class="btn-primary">Add Rule</button>
             </div>
         </div>
     </div>

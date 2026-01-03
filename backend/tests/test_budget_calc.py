@@ -29,38 +29,38 @@ class TestCalculateYtdBudget:
         assert result == 100.0
 
     def test_quarterly_timing_q1(self):
-        """Quarterly timing in Q1 = 0 (no quarters complete)."""
+        """Quarterly timing in Q1 = 1/4 (1 quarter through)."""
         annual = 1200.0
-        # March is still Q1, no quarters complete
+        # March is Q1, 1 quarter through
         result = calculate_ytd_budget(annual, 'quarterly', date(2025, 3, 15))
-        assert result == 0.0
-
-    def test_quarterly_timing_q2(self):
-        """Quarterly timing in Q2 = 1/4 (Q1 complete)."""
-        annual = 1200.0
-        # April is Q2, Q1 is complete
-        result = calculate_ytd_budget(annual, 'quarterly', date(2025, 4, 15))
         assert result == 300.0
 
-    def test_quarterly_timing_q3(self):
-        """Quarterly timing in Q3 = 2/4 (Q1+Q2 complete)."""
+    def test_quarterly_timing_q2(self):
+        """Quarterly timing in Q2 = 2/4 (2 quarters through)."""
         annual = 1200.0
-        # August is Q3, Q1+Q2 complete
-        result = calculate_ytd_budget(annual, 'quarterly', date(2025, 8, 15))
+        # April is Q2, 2 quarters through
+        result = calculate_ytd_budget(annual, 'quarterly', date(2025, 4, 15))
         assert result == 600.0
 
-    def test_quarterly_timing_q4(self):
-        """Quarterly timing in Q4 = 3/4 (Q1+Q2+Q3 complete)."""
+    def test_quarterly_timing_q3(self):
+        """Quarterly timing in Q3 = 3/4 (3 quarters through)."""
         annual = 1200.0
-        # October is Q4, 3 quarters complete
-        result = calculate_ytd_budget(annual, 'quarterly', date(2025, 10, 15))
+        # August is Q3, 3 quarters through
+        result = calculate_ytd_budget(annual, 'quarterly', date(2025, 8, 15))
         assert result == 900.0
 
+    def test_quarterly_timing_q4(self):
+        """Quarterly timing in Q4 = 4/4 (4 quarters through)."""
+        annual = 1200.0
+        # October is Q4, 4 quarters through
+        result = calculate_ytd_budget(annual, 'quarterly', date(2025, 10, 15))
+        assert result == 1200.0
+
     def test_quarterly_timing_end_of_year(self):
-        """Quarterly timing in December = 3/4 (Q4 not complete)."""
+        """Quarterly timing in December = 4/4 (full year)."""
         annual = 1200.0
         result = calculate_ytd_budget(annual, 'quarterly', date(2025, 12, 15))
-        assert result == 900.0
+        assert result == 1200.0
 
     def test_annual_timing_january(self):
         """Annual timing should return full amount regardless of month."""
@@ -102,13 +102,13 @@ class TestBudgetScenarios:
         assert result == pytest.approx(2200.0, rel=0.01)
 
     def test_cintas_quarterly_august(self):
-        """Cintas Fire Protection (quarterly $1,500) in August = $750.
+        """Cintas Fire Protection (quarterly $1,500) in August = $1,125.
 
-        August is Q3, so Q1+Q2 complete = 2 quarters = $750.
+        August is Q3, so 3 quarters through = $1,125.
         """
         annual = 1500.0
         result = calculate_ytd_budget(annual, 'quarterly', date(2025, 8, 15))
-        assert result == pytest.approx(750.0, rel=0.01)
+        assert result == pytest.approx(1125.0, rel=0.01)
 
     def test_bulger_annual_august(self):
         """Bulger Safe & Lock (annual $400) in August = $400."""
