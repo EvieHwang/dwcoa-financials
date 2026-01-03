@@ -6,6 +6,7 @@ A serverless financial management application for the Denny Way Condo Owners Ass
 
 - **Transaction Management**: Upload bank CSV exports, auto-categorize using rules engine + Claude AI
 - **Transaction Viewer**: Sortable, filterable data table with pagination and CSV export
+- **Visual Charts**: YTD Budget vs Actual bar chart and Monthly Cash Flow line chart
 - **Budget Tracking**: Annual budgets with timing patterns (monthly, quarterly, annual) for accurate YTD calculations
 - **Dues Tracking**: Track payments by unit based on ownership percentages
 - **Reserve Fund Monitoring**: Track contributions and expenses with YTD net change
@@ -18,7 +19,7 @@ A serverless financial management application for the Denny Way Condo Owners Ass
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Vanilla HTML/CSS/JavaScript, Tabulator.js |
+| Frontend | Vanilla HTML/CSS/JavaScript, Chart.js, Tabulator.js |
 | Backend | Python 3.12, AWS Lambda |
 | Database | SQLite (stored in S3) |
 | API | AWS API Gateway (HTTP API) |
@@ -73,6 +74,11 @@ The dashboard shows financial data for the current year by default. Use the date
 6. Click **+ Add Category** to create new budget categories
 
 ## Dashboard Sections
+
+### Financial Overview (Charts)
+Two charts providing visual summaries:
+- **YTD Budget vs Actual**: Bar chart comparing budgeted vs actual amounts for Income & Dues and Operating Expenses
+- **Monthly Cash Flow**: Line chart showing income and expenses by month for the selected year
 
 ### Account Balances
 Three account cards showing current balances:

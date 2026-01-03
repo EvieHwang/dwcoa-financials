@@ -295,3 +295,49 @@ def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dic
         'expenses': round(expenses, 2),
         'net': round(net, 2)
     }
+
+
+def get_monthly_cashflow(year: int, as_of_date: Optional[date] = None) -> List[dict]:
+    """Get monthly income and expenses for cash flow chart.
+
+    Args:
+        year: Year to get data for
+        as_of_date: Only include transactions on or before this date
+
+    Returns:
+        List of monthly data with income and expenses
+    """
+    if as_of_date is None:
+        as_of_date = date.today()
+
+    # Get monthly totals for income and expenses
+    sql = """
+        SELECT
+            CAST(strftime('%m', t.post_date) AS INTEGER) as month,
+            SUM(CASE WHEN c.type = 'Income' THEN t.credit ELSE 0 END) as income,
+            SUM(CASE WHEN c.type = 'Expense' THEN t.debit ELSE 0 END) as expenses
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE strftime('%Y', t.post_date) = ?
+        AND t.post_date <= ?
+        GROUP BY strftime('%m', t.post_date)
+        ORDER BY month
+    """
+    rows = database.fetch_all(sql, (str(year), as_of_date.isoformat()))
+
+    # Create a list for all 12 months, filling in zeros for missing months
+    monthly_data = []
+    month_map = {row['month']: row for row in rows}
+
+    # Only include months up to as_of_date
+    max_month = as_of_date.month if as_of_date.year == year else 12
+
+    for month in range(1, max_month + 1):
+        data = month_map.get(month, {})
+        monthly_data.append({
+            'month': month,
+            'income': round(data.get('income', 0) or 0, 2),
+            'expenses': round(data.get('expenses', 0) or 0, 2)
+        })
+
+    return monthly_data

@@ -9,6 +9,8 @@ const API_BASE = '/api';  // Relative path, works with CloudFront
 let authToken = null;
 let userRole = null;
 let categories = [];
+let budgetChart = null;
+let cashflowChart = null;
 
 // Utility functions
 function formatCurrency(amount) {
@@ -33,6 +35,173 @@ function formatDate(dateStr) {
         minute: '2-digit',
         timeZone: 'America/Los_Angeles'
     }) + ' PT';
+}
+
+// Chart colors
+const CHART_COLORS = {
+    budget: 'rgba(37, 99, 235, 0.8)',      // Blue
+    actual: 'rgba(22, 163, 74, 0.8)',       // Green
+    income: 'rgba(22, 163, 74, 0.8)',       // Green
+    expenses: 'rgba(220, 38, 38, 0.8)',     // Red
+    budgetBorder: 'rgba(37, 99, 235, 1)',
+    actualBorder: 'rgba(22, 163, 74, 1)',
+    incomeBorder: 'rgba(22, 163, 74, 1)',
+    expensesBorder: 'rgba(220, 38, 38, 1)'
+};
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Chart functions
+function renderBudgetChart(data) {
+    const ctx = document.getElementById('budget-chart');
+    if (!ctx) return;
+
+    // Calculate totals for income (from dues_status)
+    const incomeBudget = data.dues_status.reduce((sum, u) => sum + u.expected_ytd, 0);
+    const incomeActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
+
+    // Get expense totals
+    const expenseBudget = data.expense_summary.ytd_budget;
+    const expenseActual = data.expense_summary.ytd_actual;
+
+    const chartData = {
+        labels: ['Income & Dues', 'Operating Expenses'],
+        datasets: [
+            {
+                label: 'Budget (YTD)',
+                data: [incomeBudget, expenseBudget],
+                backgroundColor: CHART_COLORS.budget,
+                borderColor: CHART_COLORS.budgetBorder,
+                borderWidth: 1
+            },
+            {
+                label: 'Actual (YTD)',
+                data: [incomeActual, expenseActual],
+                backgroundColor: CHART_COLORS.actual,
+                borderColor: CHART_COLORS.actualBorder,
+                borderWidth: 1
+            }
+        ]
+    };
+
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + formatCurrency(context.raw);
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    };
+
+    if (budgetChart) {
+        budgetChart.data = chartData;
+        budgetChart.update();
+    } else {
+        budgetChart = new Chart(ctx, {
+            type: 'bar',
+            data: chartData,
+            options: options
+        });
+    }
+}
+
+function renderCashflowChart(data) {
+    const ctx = document.getElementById('cashflow-chart');
+    if (!ctx) return;
+
+    const monthlyData = data.monthly_cashflow || [];
+
+    // Get labels for months that have data
+    const labels = monthlyData.map(m => MONTH_LABELS[m.month - 1]);
+    const incomeData = monthlyData.map(m => m.income);
+    const expenseData = monthlyData.map(m => m.expenses);
+
+    const chartData = {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Income',
+                data: incomeData,
+                borderColor: CHART_COLORS.incomeBorder,
+                backgroundColor: CHART_COLORS.income,
+                tension: 0.1,
+                fill: false
+            },
+            {
+                label: 'Expenses',
+                data: expenseData,
+                borderColor: CHART_COLORS.expensesBorder,
+                backgroundColor: CHART_COLORS.expenses,
+                tension: 0.1,
+                fill: false
+            }
+        ]
+    };
+
+    const options = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + formatCurrency(context.raw);
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    };
+
+    if (cashflowChart) {
+        cashflowChart.data = chartData;
+        cashflowChart.update();
+    } else {
+        cashflowChart = new Chart(ctx, {
+            type: 'line',
+            data: chartData,
+            options: options
+        });
+    }
+}
+
+function renderCharts(data) {
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded');
+        return;
+    }
+    renderBudgetChart(data);
+    renderCashflowChart(data);
 }
 
 // API functions
@@ -245,6 +414,9 @@ function renderDashboard(data) {
             reviewBtn.classList.remove('grayed');
         }
     }
+
+    // Render charts
+    renderCharts(data);
 }
 
 // Upload functions
