@@ -195,15 +195,15 @@ function renderDashboard(data) {
     document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
 
     // Income & Dues summary
-    const income = data.income_summary;
-    const duesExpected = data.dues_status.reduce((sum, u) => sum + u.expected_ytd, 0);
-    const duesReceived = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
-    const otherIncome = income.ytd_actual - duesReceived;
+    const duesBudget = data.dues_status.reduce((sum, u) => sum + u.expected_ytd, 0);
+    const duesActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
+    const duesRemaining = duesBudget - duesActual;
 
-    document.getElementById('dues-expected').textContent = formatCurrency(duesExpected);
-    document.getElementById('dues-received').textContent = formatCurrency(duesReceived);
-    document.getElementById('other-income').textContent = formatCurrency(otherIncome > 0 ? otherIncome : 0);
-    document.getElementById('total-income').textContent = formatCurrency(income.ytd_actual);
+    document.getElementById('dues-budget').textContent = formatCurrency(duesBudget);
+    document.getElementById('dues-actual').textContent = formatCurrency(duesActual);
+    const duesRemainingEl = document.getElementById('dues-remaining');
+    duesRemainingEl.textContent = formatCurrency(duesRemaining);
+    duesRemainingEl.className = duesRemaining >= 0 ? 'positive' : 'negative';
 
     // Dues table (compact)
     const duesTable = document.querySelector('#dues-table tbody');
@@ -219,10 +219,11 @@ function renderDashboard(data) {
 
     // Expense summary
     const expense = data.expense_summary;
-    document.getElementById('expense-ytd-budget').textContent = formatCurrency(expense.ytd_budget);
-    document.getElementById('expense-ytd-actual').textContent = formatCurrency(expense.ytd_actual);
-    document.getElementById('expense-remaining').textContent = formatCurrency(expense.remaining);
-    document.getElementById('expense-remaining').className = expense.remaining >= 0 ? 'positive' : 'negative';
+    document.getElementById('expense-budget').textContent = formatCurrency(expense.ytd_budget);
+    document.getElementById('expense-actual').textContent = formatCurrency(expense.ytd_actual);
+    const expenseRemainingEl = document.getElementById('expense-remaining');
+    expenseRemainingEl.textContent = formatCurrency(expense.remaining);
+    expenseRemainingEl.className = expense.remaining >= 0 ? 'positive' : 'negative';
 
     const expenseTable = document.querySelector('#expense-table tbody');
     expenseTable.innerHTML = expense.categories.map(cat => `
@@ -234,9 +235,16 @@ function renderDashboard(data) {
         </tr>
     `).join('');
 
-    // Review count
-    document.getElementById('review-count').textContent =
-        `${data.review_count} transaction(s) need review`;
+    // Review button - show count and gray out if zero
+    const reviewBtn = document.getElementById('review-btn');
+    if (reviewBtn) {
+        reviewBtn.textContent = `Review (${data.review_count})`;
+        if (data.review_count === 0) {
+            reviewBtn.classList.add('grayed');
+        } else {
+            reviewBtn.classList.remove('grayed');
+        }
+    }
 }
 
 // Upload functions
@@ -525,25 +533,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Upload
+    // File chooser and upload
+    const fileInput = document.getElementById('csv-file');
+    const chooseFileBtn = document.getElementById('choose-file-btn');
     const uploadBtn = document.getElementById('upload-btn');
+    const statusEl = document.getElementById('upload-status');
+
+    if (chooseFileBtn && fileInput) {
+        chooseFileBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadBtn.disabled = false;
+                chooseFileBtn.textContent = fileInput.files[0].name;
+            } else {
+                uploadBtn.disabled = true;
+                chooseFileBtn.textContent = 'Choose File';
+            }
+        });
+    }
+
     if (uploadBtn) {
         uploadBtn.addEventListener('click', async () => {
-            const fileInput = document.getElementById('csv-file');
-            const statusEl = document.getElementById('upload-status');
-
-            if (!fileInput || !fileInput.files.length) {
-                alert('Please select a CSV file');
-                return;
-            }
+            if (!fileInput || !fileInput.files.length) return;
 
             try {
                 if (statusEl) statusEl.textContent = 'Uploading...';
+                uploadBtn.disabled = true;
                 const result = await uploadCSV(fileInput.files[0]);
-                if (statusEl) statusEl.textContent = `Success! ${result.stats.total_rows} transactions, ${result.stats.needs_review} need review`;
+                if (statusEl) statusEl.textContent = `${result.stats.total_rows} rows, ${result.stats.needs_review} need review`;
+                fileInput.value = '';
+                chooseFileBtn.textContent = 'Choose File';
                 await loadDashboard();
             } catch (e) {
                 if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+                uploadBtn.disabled = false;
             }
         });
     }

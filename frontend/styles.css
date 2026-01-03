@@ -207,6 +207,15 @@ header {
     font-style: italic;
 }
 
+.date-picker-row .spacer {
+    flex: 1;
+}
+
+#last-updated {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
 /* Main */
 main {
     max-width: 1200px;
@@ -250,8 +259,9 @@ section h2 {
 }
 
 .account-card .name {
-    font-size: 0.875rem;
-    color: var(--text-muted);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-color);
     margin-bottom: 0.25rem;
 }
 
@@ -261,28 +271,23 @@ section h2 {
 }
 
 .reserve-card {
-    text-align: left;
-    padding: 1rem 1.5rem;
+    text-align: center;
 }
 
-.reserve-card .name {
-    margin-bottom: 0.5rem;
-}
-
-.reserve-details {
+.reserve-values {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: center;
+    gap: 1.5rem;
 }
 
-.reserve-details .balance {
+.reserve-values .balance {
     font-size: 1.5rem;
 }
 
-.reserve-details .ytd-change {
-    font-size: 0.9rem;
-    color: var(--text-muted);
+.reserve-values .ytd-change {
+    font-size: 1.5rem;
+    font-weight: 600;
 }
 
 .total-row {
@@ -294,15 +299,15 @@ section h2 {
 }
 
 /* Income & Dues Section */
-.income-grid {
+.income-grid, .expense-grid {
     display: grid;
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 180px 1fr;
     gap: 1.5rem;
     align-items: start;
 }
 
 @media (max-width: 768px) {
-    .income-grid {
+    .income-grid, .expense-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -311,35 +316,34 @@ section h2 {
     background: var(--bg-color);
     padding: 1rem;
     border-radius: 4px;
-    min-width: 200px;
 }
 
-.dues-table.compact {
+/* Compact tables for both sections */
+.dues-table.compact, .budget-table.compact {
     font-size: 0.8rem;
 }
 
-.dues-table.compact th, .dues-table.compact td {
-    padding: 0.35rem 0.4rem;
+.dues-table.compact th, .dues-table.compact td,
+.budget-table.compact th, .budget-table.compact td {
+    padding: 0.35rem 0.5rem;
     white-space: nowrap;
 }
 
+/* First column (Unit/Category) takes remaining space */
 .dues-table.compact th:first-child,
-.dues-table.compact td:first-child {
-    width: 50px;
+.dues-table.compact td:first-child,
+.budget-table.compact th:first-child,
+.budget-table.compact td:first-child {
+    white-space: normal;
 }
 
-/* Expense Section - match income layout */
-.expense-grid {
-    display: grid;
-    grid-template-columns: 220px 1fr;
-    gap: 1.5rem;
-    align-items: start;
-}
-
-@media (max-width: 768px) {
-    .expense-grid {
-        grid-template-columns: 1fr;
-    }
+/* Align numeric columns */
+.dues-table.compact th:nth-child(n+3),
+.dues-table.compact td:nth-child(n+3),
+.budget-table.compact th:nth-child(n+2),
+.budget-table.compact td:nth-child(n+2) {
+    text-align: right;
+    width: 80px;
 }
 
 /* Budget Tables */
@@ -393,26 +397,44 @@ section h2 {
 }
 
 /* Admin Controls */
-.admin-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+.admin-buttons {
+    display: flex;
     gap: 1.5rem;
+    flex-wrap: wrap;
 }
 
-.control-group {
-    background: var(--bg-color);
-    padding: 1rem;
+.admin-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-admin {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
     border-radius: 4px;
+    cursor: pointer;
 }
 
-.control-group h3 {
-    font-size: 1rem;
-    margin-bottom: 0.75rem;
+.btn-admin:hover {
+    background: var(--primary-dark);
 }
 
-.control-group input[type="file"] {
-    display: block;
-    margin-bottom: 0.5rem;
+.btn-admin:disabled {
+    background: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.btn-admin.grayed {
+    background: #9ca3af;
+}
+
+#upload-status {
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
 
 /* Buttons */
