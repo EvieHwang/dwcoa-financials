@@ -155,12 +155,12 @@ def generate_dashboard_pdf(year: Optional[int] = None) -> bytes:
 
     # Dues Status
     elements.append(Paragraph("Dues Status by Unit", heading_style))
-    dues_table_data = [['Unit', 'Ownership', 'Expected', 'Paid YTD', 'Outstanding']]
+    dues_table_data = [['Unit', 'Ownership', 'Budget', 'Actual', 'Remaining']]
     for unit in dues_data['units']:
         dues_table_data.append([
             unit['unit'],
             f"{unit['ownership_pct']*100:.1f}%",
-            format_currency(unit['expected_annual']),
+            format_currency(unit['expected_ytd']),
             format_currency(unit['paid_ytd']),
             format_currency(unit['outstanding'])
         ])
