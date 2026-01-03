@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS units (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     number TEXT NOT NULL UNIQUE,
-    ownership_pct REAL NOT NULL CHECK (ownership_pct > 0 AND ownership_pct <= 1)
+    ownership_pct REAL NOT NULL CHECK (ownership_pct > 0 AND ownership_pct <= 1),
+    past_due_balance REAL NOT NULL DEFAULT 0
 );
 
 -- Budgets table: Annual budget amounts per category
@@ -119,6 +120,7 @@ CREATE VIEW IF NOT EXISTS v_unit_summary AS
 SELECT
     u.id,
     u.number as unit,
-    u.ownership_pct
+    u.ownership_pct,
+    u.past_due_balance
 FROM units u
 ORDER BY u.number;

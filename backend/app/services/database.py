@@ -31,6 +31,9 @@ def init_db(conn: sqlite3.Connection) -> None:
     with open(get_sql_path('schema.sql'), 'r') as f:
         conn.executescript(f.read())
 
+    # Run migrations for existing databases
+    run_migrations(conn)
+
     # Run seed data
     with open(get_sql_path('seed.sql'), 'r') as f:
         conn.executescript(f.read())
@@ -40,6 +43,20 @@ def init_db(conn: sqlite3.Connection) -> None:
         conn.executescript(f.read())
 
     conn.commit()
+
+
+def run_migrations(conn: sqlite3.Connection) -> None:
+    """Run database migrations for schema updates.
+
+    Args:
+        conn: SQLite connection
+    """
+    # Check if past_due_balance column exists in units table
+    cursor = conn.execute("PRAGMA table_info(units)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if 'past_due_balance' not in columns:
+        conn.execute("ALTER TABLE units ADD COLUMN past_due_balance REAL NOT NULL DEFAULT 0")
 
 
 def get_connection() -> sqlite3.Connection:
@@ -430,3 +447,40 @@ def delete_rule(rule_id: int) -> int:
         conn.execute("DELETE FROM categorize_rules WHERE id = ?", (rule_id,))
 
     return affected_count
+
+
+def get_unit(unit_number: str) -> Optional[dict]:
+    """Get a single unit by number.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+
+    Returns:
+        Unit dict or None if not found
+    """
+    row = fetch_one("SELECT * FROM units WHERE number = ?", (unit_number,))
+    return row_to_dict(row) if row else None
+
+
+def update_unit(unit_number: str, past_due_balance: float) -> Optional[dict]:
+    """Update a unit's past due balance.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+        past_due_balance: New past due balance amount
+
+    Returns:
+        Updated unit dict or None if not found
+    """
+    # Verify unit exists
+    unit = get_unit(unit_number)
+    if not unit:
+        return None
+
+    with transaction():
+        execute(
+            "UPDATE units SET past_due_balance = ? WHERE number = ?",
+            (past_due_balance, unit_number)
+        )
+
+    return get_unit(unit_number)

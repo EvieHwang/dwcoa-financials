@@ -11,6 +11,7 @@ let userRole = null;
 let categories = [];
 let budgetChart = null;
 let cashflowChart = null;
+let historicalDisclaimerShown = false;  // Session flag for historical data disclaimer
 
 // Utility functions
 function formatCurrency(amount) {
@@ -328,6 +329,20 @@ function getTodayString() {
     return new Date().toISOString().split('T')[0];
 }
 
+function checkHistoricalDate(dateString) {
+    // Show disclaimer for dates before January 1, 2025
+    // Only show once per session
+    if (historicalDisclaimerShown) return;
+
+    const selectedDate = new Date(dateString + 'T00:00:00');
+    const cutoffDate = new Date('2025-01-01T00:00:00');
+
+    if (selectedDate < cutoffDate) {
+        const modal = document.getElementById('historical-modal');
+        if (modal) modal.classList.remove('hidden');
+    }
+}
+
 function renderDashboard(data) {
     // Last updated
     document.getElementById('last-updated').textContent =
@@ -401,7 +416,8 @@ function renderDashboard(data) {
         <tr>
             <td>${unit.unit}</td>
             <td>${formatPercent(unit.ownership_pct)}</td>
-            <td>${formatCurrency(unit.expected_ytd)}</td>
+            <td>${unit.past_due_balance > 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
+            <td>${formatCurrency(unit.ytd_budget)}</td>
             <td>${formatCurrency(unit.paid_ytd)}</td>
             <td class="${unit.outstanding > 0 ? 'negative' : 'positive'}">${formatCurrency(unit.outstanding)}</td>
         </tr>
@@ -795,6 +811,57 @@ async function copyBudgets(fromYear, toYear) {
     }
 }
 
+// Unit management functions
+async function loadUnits() {
+    try {
+        const response = await apiRequest('/units');
+        const data = await response.json();
+        renderUnitsTable(data.units);
+    } catch (e) {
+        showBudgetStatus('Error loading units: ' + e.message, 'error');
+    }
+}
+
+function renderUnitsTable(units) {
+    const tbody = document.getElementById('units-edit-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = units.map(unit => `
+        <tr data-unit="${unit.number}">
+            <td>Unit ${unit.number}</td>
+            <td>
+                <input type="number" step="0.01" min="0" class="past-due-input"
+                       value="${unit.past_due_balance || 0}">
+            </td>
+            <td>
+                <button class="btn-small save-unit-btn">Save</button>
+            </td>
+        </tr>
+    `).join('');
+
+    // Add save handlers
+    tbody.querySelectorAll('.save-unit-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const row = btn.closest('tr');
+            const unitNumber = row.dataset.unit;
+            const input = row.querySelector('.past-due-input');
+            const pastDueBalance = parseFloat(input.value) || 0;
+
+            try {
+                await apiRequest(`/units/${unitNumber}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ past_due_balance: pastDueBalance })
+                });
+                showBudgetStatus(`Unit ${unitNumber} updated`, 'success');
+                // Reload dashboard to reflect changes
+                await loadDashboard();
+            } catch (e) {
+                showBudgetStatus('Error updating unit: ' + e.message, 'error');
+            }
+        });
+    });
+}
+
 function showBudgetStatus(message, type) {
     const statusEl = document.getElementById('budget-status');
     statusEl.textContent = message;
@@ -849,6 +916,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Auto-load when date changes
         snapshotDateEl.addEventListener('change', async () => {
+            checkHistoricalDate(snapshotDateEl.value);
             await loadDashboard(snapshotDateEl.value);
         });
     }
@@ -972,6 +1040,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         manageBudgetsBtn.addEventListener('click', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
+            await loadUnits();
             document.getElementById('budget-modal').classList.remove('hidden');
         });
 
@@ -1041,6 +1110,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         closeRulesBtn.addEventListener('click', () => {
             document.getElementById('rules-modal').classList.add('hidden');
             loadDashboard();  // Refresh dashboard (review count may have changed)
+        });
+    }
+
+    // Historical data disclaimer modal
+    const historicalOkBtn = document.getElementById('historical-ok-btn');
+    if (historicalOkBtn) {
+        historicalOkBtn.addEventListener('click', () => {
+            historicalDisclaimerShown = true;
+            document.getElementById('historical-modal').classList.add('hidden');
         });
     }
 

@@ -66,7 +66,9 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     total_ytd_budget = 0
     unit_status = []
     for unit in units:
-        expected_ytd = dues_budgets.get(unit['number'], 0)
+        past_due = unit.get('past_due_balance', 0) or 0
+        ytd_budget = dues_budgets.get(unit['number'], 0)
+        expected_ytd = past_due + ytd_budget  # Include past due in expected
         total_ytd_budget += expected_ytd
         paid = dues_by_unit.get(unit['number'], 0)
         outstanding = expected_ytd - paid
@@ -74,6 +76,8 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
         unit_status.append({
             'unit': unit['number'],
             'ownership_pct': unit['ownership_pct'],
+            'past_due_balance': round(past_due, 2),
+            'ytd_budget': round(ytd_budget, 2),
             'expected_ytd': round(expected_ytd, 2),
             'paid_ytd': round(paid, 2),
             'outstanding': round(outstanding, 2)

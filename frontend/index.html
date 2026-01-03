@@ -120,6 +120,7 @@
                             <tr>
                                 <th>Unit</th>
                                 <th>Share</th>
+                                <th>Past Due</th>
                                 <th>Budget</th>
                                 <th>Actual</th>
                                 <th>Remaining</th>
@@ -266,6 +267,27 @@
             <div class="add-category-row">
                 <button id="add-category-btn" class="btn-secondary">+ Add Category</button>
             </div>
+
+            <h3 class="units-section-title">Unit Past Due Balances</h3>
+            <table id="units-table" class="budget-table compact">
+                <thead>
+                    <tr>
+                        <th>Unit</th>
+                        <th>Past Due Balance</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="units-edit-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historical Data Disclaimer Modal -->
+    <div id="historical-modal" class="modal hidden">
+        <div class="modal-content modal-small">
+            <h2>Historical Data</h2>
+            <p>This information is incomplete and provided for historical purposes only.</p>
+            <button id="historical-ok-btn" class="btn-primary">OK</button>
         </div>
     </div>
 

@@ -121,7 +121,7 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
     is_admin = role == 'admin'
 
     # Import route handlers (lazy to avoid circular imports)
-    from app.routes import dashboard, transactions, categories, budgets, dues, reports, rules
+    from app.routes import dashboard, transactions, categories, budgets, dues, reports, rules, units
 
     # Dashboard
     if path == '/api/dashboard' and method == 'GET':
@@ -212,6 +212,16 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
             return error_response(403, 'forbidden', 'Admin access required')
         rule_id = int(path.split('/')[-1])
         return rules.handle_delete(rule_id)
+
+    # Units
+    if path == '/api/units' and method == 'GET':
+        return units.handle_get_units()
+
+    if path.startswith('/api/units/') and method == 'PATCH':
+        if not is_admin:
+            return error_response(403, 'forbidden', 'Admin access required')
+        unit_number = path.split('/')[-1]
+        return units.handle_update_unit(unit_number, body)
 
     # Not found
     return error_response(404, 'not_found', f'Route not found: {method} {path}')

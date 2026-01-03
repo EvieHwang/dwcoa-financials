@@ -35,17 +35,22 @@ INSERT OR IGNORE INTO categories (name, type, default_account, timing) VALUES
 ('Reserve Expenses', 'Expense', 'Reserve Fund', 'annual'),
 ('Transfers', 'Internal', 'Any', 'annual');
 
--- Unit ownership percentages
-INSERT OR IGNORE INTO units (number, ownership_pct) VALUES
-('101', 0.117),
-('102', 0.104),
-('103', 0.112),
-('201', 0.117),
-('202', 0.104),
-('203', 0.112),
-('301', 0.117),
-('302', 0.104),
-('303', 0.112);
+-- Unit ownership percentages and past due balances
+INSERT OR IGNORE INTO units (number, ownership_pct, past_due_balance) VALUES
+('101', 0.117, 3981.85),
+('102', 0.104, 0),
+('103', 0.112, 0),
+('201', 0.117, 0),
+('202', 0.104, 0),
+('203', 0.112, 371.40),
+('301', 0.117, 0),
+('302', 0.104, 0),
+('303', 0.112, 625.44);
+
+-- Update past due balances for existing databases
+UPDATE units SET past_due_balance = 3981.85 WHERE number = '101';
+UPDATE units SET past_due_balance = 371.40 WHERE number = '203';
+UPDATE units SET past_due_balance = 625.44 WHERE number = '303';
 
 -- 2025 Budget: Income
 INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
