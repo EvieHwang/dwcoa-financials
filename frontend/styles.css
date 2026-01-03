@@ -154,11 +154,23 @@ header {
     background: rgba(255, 255, 255, 0.25);
 }
 
-.badge {
-    background: rgba(255, 255, 255, 0.2);
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
+.role-badge {
+    background: transparent;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.8;
+}
+
+/* Subheader */
+.subheader {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0.5rem 2rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
 }
 
 .date-picker-row {
@@ -217,11 +229,17 @@ section h2 {
 }
 
 /* Account Balances */
-.accounts-grid {
+.accounts-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 1fr 1fr 1.5fr;
     gap: 1rem;
     margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .accounts-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .account-card {
@@ -234,11 +252,37 @@ section h2 {
 .account-card .name {
     font-size: 0.875rem;
     color: var(--text-muted);
+    margin-bottom: 0.25rem;
 }
 
 .account-card .balance {
     font-size: 1.5rem;
     font-weight: 600;
+}
+
+.reserve-card {
+    text-align: left;
+    padding: 1rem 1.5rem;
+}
+
+.reserve-card .name {
+    margin-bottom: 0.5rem;
+}
+
+.reserve-details {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.reserve-details .balance {
+    font-size: 1.5rem;
+}
+
+.reserve-details .ytd-change {
+    font-size: 0.9rem;
+    color: var(--text-muted);
 }
 
 .total-row {
@@ -252,7 +296,7 @@ section h2 {
 /* Income & Dues Section */
 .income-grid {
     display: grid;
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 220px 1fr;
     gap: 1.5rem;
     align-items: start;
 }
@@ -263,10 +307,11 @@ section h2 {
     }
 }
 
-.income-summary, .expense-summary, .reserve-summary {
+.income-summary, .expense-summary {
     background: var(--bg-color);
     padding: 1rem;
     border-radius: 4px;
+    min-width: 200px;
 }
 
 .dues-table.compact {
@@ -274,7 +319,27 @@ section h2 {
 }
 
 .dues-table.compact th, .dues-table.compact td {
-    padding: 0.35rem 0.5rem;
+    padding: 0.35rem 0.4rem;
+    white-space: nowrap;
+}
+
+.dues-table.compact th:first-child,
+.dues-table.compact td:first-child {
+    width: 50px;
+}
+
+/* Expense Section - match income layout */
+.expense-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .expense-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Budget Tables */

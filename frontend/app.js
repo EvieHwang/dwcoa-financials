@@ -175,14 +175,22 @@ function renderDashboard(data) {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
 
-    // Account balances
-    const accountsGrid = document.getElementById('accounts-grid');
-    accountsGrid.innerHTML = data.accounts.map(acc => `
-        <div class="account-card">
-            <div class="name">${acc.name}</div>
-            <div class="balance">${formatCurrency(acc.balance)}</div>
-        </div>
-    `).join('');
+    // Account balances - find each account by name
+    const findBalance = (name) => {
+        const acc = data.accounts.find(a => a.name === name);
+        return acc ? acc.balance : 0;
+    };
+
+    document.getElementById('balance-checking').textContent = formatCurrency(findBalance('Checking'));
+    document.getElementById('balance-savings').textContent = formatCurrency(findBalance('Savings'));
+    document.getElementById('balance-reserve').textContent = formatCurrency(findBalance('Reserve Fund'));
+
+    // Reserve YTD change (net of contributions - expenses)
+    const reserve = data.reserve_fund || { net: 0 };
+    const ytdChangeEl = document.getElementById('reserve-ytd-change');
+    const ytdPrefix = reserve.net >= 0 ? '+' : '';
+    ytdChangeEl.textContent = `YTD: ${ytdPrefix}${formatCurrency(reserve.net)}`;
+    ytdChangeEl.className = `ytd-change ${reserve.net >= 0 ? 'positive' : 'negative'}`;
 
     document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
 
@@ -225,15 +233,6 @@ function renderDashboard(data) {
             <td class="${cat.remaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(cat.remaining)}</td>
         </tr>
     `).join('');
-
-    // Reserve fund - contributions in, expenses out, net change
-    const reserve = data.reserve_fund || { budget: 0, contributions: 0, expenses: 0, net: 0 };
-    document.getElementById('reserve-budget').textContent = formatCurrency(reserve.budget);
-    document.getElementById('reserve-contributions').textContent = formatCurrency(reserve.contributions);
-    document.getElementById('reserve-expenses').textContent = formatCurrency(reserve.expenses);
-    const reserveNet = document.getElementById('reserve-net');
-    reserveNet.textContent = formatCurrency(reserve.net);
-    reserveNet.className = reserve.net >= 0 ? 'positive' : 'negative';
 
     // Review count
     document.getElementById('review-count').textContent =

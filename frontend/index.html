@@ -27,8 +27,7 @@
             <div class="header-content">
                 <h1>DWCOA Financial Dashboard</h1>
                 <div class="header-meta">
-                    <span id="last-updated"></span>
-                    <span id="user-role" class="badge"></span>
+                    <span id="user-role" class="role-badge"></span>
                     <button id="download-csv-btn" class="btn-header">CSV</button>
                     <button id="download-pdf-btn" class="btn-header">PDF</button>
                     <button id="logout-btn" class="btn-header">Logout</button>
@@ -42,12 +41,32 @@
             </div>
         </header>
 
+        <div class="subheader">
+            <span id="last-updated"></span>
+        </div>
+
         <!-- Main Content -->
         <main>
             <!-- Account Balances -->
             <section id="accounts-section">
                 <h2>Account Balances</h2>
-                <div id="accounts-grid" class="accounts-grid"></div>
+                <div class="accounts-row">
+                    <div class="account-card">
+                        <div class="name">Checking</div>
+                        <div class="balance" id="balance-checking">$0.00</div>
+                    </div>
+                    <div class="account-card">
+                        <div class="name">Savings</div>
+                        <div class="balance" id="balance-savings">$0.00</div>
+                    </div>
+                    <div class="account-card reserve-card">
+                        <div class="name">Reserve Fund</div>
+                        <div class="reserve-details">
+                            <span class="balance" id="balance-reserve">$0.00</span>
+                            <span class="ytd-change" id="reserve-ytd-change">YTD: $0.00</span>
+                        </div>
+                    </div>
+                </div>
                 <div class="total-row">
                     <strong>Total Cash:</strong>
                     <span id="total-cash"></span>
@@ -94,53 +113,32 @@
             <!-- Expenses -->
             <section id="expense-section">
                 <h2>Operating Expenses</h2>
-                <div class="expense-summary">
-                    <div class="summary-row">
-                        <span>YTD Budget:</span>
-                        <span id="expense-ytd-budget"></span>
+                <div class="expense-grid">
+                    <div class="expense-summary">
+                        <div class="summary-row">
+                            <span>YTD Budget:</span>
+                            <span id="expense-ytd-budget"></span>
+                        </div>
+                        <div class="summary-row">
+                            <span>YTD Actual:</span>
+                            <span id="expense-ytd-actual"></span>
+                        </div>
+                        <div class="summary-row remaining">
+                            <span>Remaining:</span>
+                            <span id="expense-remaining"></span>
+                        </div>
                     </div>
-                    <div class="summary-row">
-                        <span>YTD Actual:</span>
-                        <span id="expense-ytd-actual"></span>
-                    </div>
-                    <div class="summary-row remaining">
-                        <span>Remaining:</span>
-                        <span id="expense-remaining"></span>
-                    </div>
-                </div>
-                <table id="expense-table" class="budget-table">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Budget</th>
-                            <th>Actual</th>
-                            <th>Remaining</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </section>
-
-            <!-- Reserve Fund -->
-            <section id="reserve-section">
-                <h2>Reserve Fund</h2>
-                <div class="reserve-summary">
-                    <div class="summary-row">
-                        <span>YTD Contribution Budget:</span>
-                        <span id="reserve-budget"></span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Contributions In:</span>
-                        <span id="reserve-contributions"></span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Expenses Out:</span>
-                        <span id="reserve-expenses"></span>
-                    </div>
-                    <div class="summary-row total">
-                        <span>Net Change:</span>
-                        <span id="reserve-net"></span>
-                    </div>
+                    <table id="expense-table" class="budget-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Budget</th>
+                                <th>Actual</th>
+                                <th>Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </section>
 
