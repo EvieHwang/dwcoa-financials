@@ -39,15 +39,22 @@ def calculate_ytd_budget(annual_amount: float, timing: str, as_of_date: date) ->
 
 
 def get_ytd_actuals(year: int) -> Dict[int, float]:
-    """Get YTD actual amounts by category.
+    """Get YTD actual amounts by category for budget comparison.
+
+    NOTE: This ONLY includes Income and Expense categories.
+    Transfers (type='Transfer' and type='Internal') are intentionally excluded
+    because they are not income or expenses - they just move money between accounts.
+    Transfers DO affect account balances (handled by get_account_balances()),
+    but should NOT appear in income/expense budget summaries.
 
     Args:
         year: Year to calculate
 
     Returns:
-        Dict mapping category_id to actual amount
+        Dict mapping category_id to actual amount (Income and Expense only)
     """
     # Income = credits, Expenses = debits
+    # Transfers excluded - they're not income or expenses
     sql = """
         SELECT
             t.category_id,
@@ -144,17 +151,31 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
 def get_account_balances() -> List[dict]:
     """Get current balance for each account.
 
+    NOTE: Account balances include ALL transactions (including transfers).
+    We use the balance column from the CSV which the bank calculates,
+    not a calculated sum of debits/credits. This ensures transfers
+    between accounts are properly reflected in each account's balance.
+
     Returns:
         List of account dicts with name and balance
     """
-    # Get most recent balance for each account
+    # Get most recent balance for each account by date (and id as tiebreaker)
+    # No category filtering - all transactions affect account balances
     sql = """
-        SELECT account_name as name, balance
-        FROM transactions
-        WHERE id IN (
-            SELECT MAX(id) FROM transactions GROUP BY account_name
+        SELECT t.account_name as name, t.balance
+        FROM transactions t
+        INNER JOIN (
+            SELECT account_name, MAX(post_date) as max_date
+            FROM transactions
+            GROUP BY account_name
+        ) latest ON t.account_name = latest.account_name
+                 AND t.post_date = latest.max_date
+        WHERE t.id = (
+            SELECT MAX(id) FROM transactions t2
+            WHERE t2.account_name = t.account_name
+            AND t2.post_date = latest.max_date
         )
-        ORDER BY account_name
+        ORDER BY t.account_name
     """
     rows = database.fetch_all(sql)
 
