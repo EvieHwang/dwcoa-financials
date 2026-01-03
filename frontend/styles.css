@@ -321,7 +321,7 @@ section h2 {
 
 /* Compact tables for both sections */
 .dues-table.compact, .budget-table.compact {
-    font-size: 0.8rem;
+    font-size: 1rem;
     table-layout: fixed;
     width: 100%;
 }
