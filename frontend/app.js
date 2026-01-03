@@ -848,10 +848,16 @@ function renderUnitsTable(units) {
             const pastDueBalance = parseFloat(input.value) || 0;
 
             try {
-                await apiRequest(`/units/${unitNumber}`, {
+                const response = await apiRequest(`/units/${unitNumber}`, {
                     method: 'PATCH',
                     body: JSON.stringify({ past_due_balance: pastDueBalance })
                 });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to update unit');
+                }
+
                 showBudgetStatus(`Unit ${unitNumber} updated`, 'success');
                 // Reload dashboard to reflect changes
                 await loadDashboard();
