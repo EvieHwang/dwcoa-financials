@@ -30,7 +30,7 @@ The treasurer maintains a master CSV file containing all transactions. When new 
 3. **Given** transactions have no category, **When** uploaded, **Then** the system attempts auto-categorization using rules engine first, then Claude API for uncertain items
 4. **Given** auto-categorization has low confidence, **When** processed, **Then** the transaction is flagged with Needs_Review = true
 5. **Given** the treasurer reviews and corrects a category, **When** saved, **Then** the pattern is learned for future similar transactions
-6. **Given** the treasurer downloads the file, **When** opened, **Then** it includes all original columns plus app-added columns (Auto_Category, Confidence, Needs_Review)
+6. **Given** the treasurer downloads the file, **When** opened, **Then** it includes all original columns plus app-added columns (Account, Category, Auto_Category, Confidence, Needs_Review)
 
 ---
 
@@ -117,7 +117,7 @@ The dashboard shows dues status by unit: expected annual dues (based on ownershi
 
 **Data Management**
 
-- **FR-001**: System MUST accept CSV file upload for transaction data (single format, treasurer ensures conformance)
+- **FR-001**: System MUST accept CSV file upload for transaction data (bank export format, treasurer ensures conformance)
 - **FR-002**: System MUST replace all transaction data on each upload (full file replacement, not incremental)
 - **FR-003**: System MUST preserve Category values from uploaded file where populated
 - **FR-004**: System MUST track upload timestamp and display "Last Updated: [datetime]" on dashboard
@@ -125,63 +125,68 @@ The dashboard shows dues status by unit: expected annual dues (based on ownershi
 
 **CSV Format**
 
-- **FR-006**: Input CSV columns: Account Number, Post Date, Check, Description, Debit, Credit, Status, Balance, Account, Category
-- **FR-007**: App-added columns on download: Auto_Category (AI suggestion), Confidence (0-100), Needs_Review (true/false)
-- **FR-008**: Category column may be blank on upload; system attempts to fill it
+- **FR-006**: Input CSV columns (bank export format): Account Number, Post Date, Check, Description, Debit, Credit, Status, Balance
+- **FR-007**: System MUST map masked account numbers to friendly names:
+  - `****7145` → Savings
+  - `****9242` → Checking  
+  - `****9226` → Reserve Fund
+- **FR-008**: App-added columns on download: Account (friendly name), Category, Auto_Category (AI suggestion), Confidence (0-100), Needs_Review (true/false)
+- **FR-009**: Category column may be blank on upload; system attempts to fill it
 
 **Auto-Categorization**
 
-- **FR-009**: System MUST attempt categorization using rules engine first (pattern matching on Description + Account)
-- **FR-010**: System MAY use Claude API (Haiku) for uncertain transactions after rules engine
-- **FR-011**: System MUST record confidence score (0-100) for each auto-categorization
-- **FR-012**: System MUST flag items with confidence < 80 as Needs_Review = true
-- **FR-013**: System MUST learn patterns from manually categorized transactions to improve rules engine
-- **FR-014**: Auto-categorization prompt is baked into the system (not user-editable via UI)
+- **FR-010**: System MUST attempt categorization using rules engine first (pattern matching on Description + Account)
+- **FR-011**: System MAY use Claude API (Haiku) for uncertain transactions after rules engine
+- **FR-012**: System MUST record confidence score (0-100) for each auto-categorization
+- **FR-013**: System MUST flag items with confidence < 80 as Needs_Review = true
+- **FR-014**: System MUST learn patterns from manually categorized transactions to improve rules engine
+- **FR-015**: Auto-categorization prompt is baked into the system (not user-editable via UI)
 
 **Budget Management**
 
-- **FR-015**: System MUST store budgets separately: Year + Category + Annual Amount + Timing Pattern
-- **FR-016**: System MUST support three timing patterns: monthly, quarterly, annual
-- **FR-017**: YTD Budget calculation by timing:
+- **FR-016**: System MUST store budgets separately: Year + Category + Annual Amount + Timing Pattern
+- **FR-017**: System MUST support three timing patterns: monthly, quarterly, annual
+- **FR-018**: YTD Budget calculation by timing:
   - Monthly: (Annual / 12) × months elapsed
   - Quarterly: (Annual / 4) × quarters completed
   - Annual: Full annual amount (expense could occur any time)
-- **FR-018**: System MUST calculate and display Remaining Budget = YTD Budget - YTD Actual
+- **FR-019**: System MUST calculate and display Remaining Budget = YTD Budget - YTD Actual
 
 **Account Handling**
 
-- **FR-019**: System MUST recognize three accounts: Savings, Checking, Reserve Fund
-- **FR-020**: Income = Credits to Savings account (excluding transfers)
-- **FR-021**: Expenses = Debits from Checking account (excluding transfers)
-- **FR-022**: Transfers category MUST be excluded from income/expense budget reporting
-- **FR-023**: Total Cash = Current balance of Savings + Checking + Reserve Fund
+- **FR-020**: System MUST recognize three accounts: Savings, Checking, Reserve Fund
+- **FR-021**: Income = Credits to Savings account (excluding transfers)
+- **FR-022**: Expenses = Debits from Checking account (excluding transfers)
+- **FR-023**: Transfers category MUST be excluded from income/expense budget reporting
+- **FR-024**: Total Cash = Current balance of Savings + Checking + Reserve Fund
 
 **Dues Tracking**
 
-- **FR-024**: System MUST store unit ownership percentages (static: 101=11.7%, 102=10.4%, 103=11.2%, 201=11.7%, 202=10.4%, 203=11.2%, 301=11.7%, 302=10.4%, 303=11.2%)
-- **FR-025**: Expected dues per unit = Total Expense Budget × Unit Percentage
-- **FR-026**: System MUST track payments received per unit (sum of transactions in "Dues [unit]" category)
-- **FR-027**: Outstanding balance per unit = Expected - Paid (unit-centric, not year-centric)
+- **FR-025**: System MUST store unit ownership percentages (static: 101=11.7%, 102=10.4%, 103=11.2%, 201=11.7%, 202=10.4%, 203=11.2%, 301=11.7%, 302=10.4%, 303=11.2%)
+- **FR-026**: Expected dues per unit = Total Expense Budget × Unit Percentage
+- **FR-027**: System MUST track payments received per unit (sum of transactions in "Dues [unit]" category)
+- **FR-028**: Outstanding balance per unit = Expected - Paid (unit-centric, not year-centric)
 
 **Access Control**
 
-- **FR-028**: System MUST have two passwords: Admin and Board (view-only)
-- **FR-029**: Admin access: upload data, manage categories, manage budgets, review queue, plus all view functions
-- **FR-030**: Board access: view dashboard, print, download PDF, download transaction CSV
+- **FR-029**: System MUST have two passwords: Admin and Board (view-only)
+- **FR-030**: Admin access: upload data, manage categories, manage budgets, review queue, plus all view functions
+- **FR-031**: Board access: view dashboard, print, download PDF, download transaction CSV
 
 **Reporting**
 
-- **FR-031**: Dashboard MUST show: Last Updated, Account Balances, Income Summary, Expense Summary with Remaining, Dues by Unit
-- **FR-032**: Dashboard MUST be print-friendly (fits one page via browser print)
-- **FR-033**: System MUST provide PDF download matching dashboard layout
-- **FR-034**: System MUST provide CSV download of all transaction data
+- **FR-032**: Dashboard MUST show: Last Updated, Account Balances, Income Summary, Expense Summary with Remaining, Dues by Unit
+- **FR-033**: Dashboard MUST be print-friendly (fits one page via browser print)
+- **FR-034**: System MUST provide PDF download matching dashboard layout
+- **FR-035**: System MUST provide CSV download of all transaction data
 
 ---
 
 ### Key Entities
 
 **Transaction**
-- Account Number (string, masked)
+- Account Number (string, masked - from bank export)
+- Account (string, friendly name - app-derived: Savings, Checking, Reserve Fund)
 - Post Date (date)
 - Check (string, optional)
 - Description (string)
@@ -189,7 +194,6 @@ The dashboard shows dues status by unit: expected annual dues (based on ownershi
 - Credit (decimal, optional)
 - Status (string)
 - Balance (decimal)
-- Account (enum: Savings, Checking, Reserve Fund)
 - Category (string, optional - from category list)
 - Auto_Category (string, app-generated)
 - Confidence (integer 0-100, app-generated)
@@ -215,6 +219,14 @@ The dashboard shows dues status by unit: expected annual dues (based on ownershi
 ---
 
 ## Initial Data
+
+### Account Mapping (seed data)
+
+| Masked Account Number | Friendly Name |
+|-----------------------|---------------|
+| ****7145 | Savings |
+| ****9242 | Checking |
+| ****9226 | Reserve Fund |
 
 ### Categories (seed data)
 
@@ -288,6 +300,17 @@ The dashboard shows dues status by unit: expected annual dues (based on ownershi
 
 ---
 
+## Training Data for Auto-Categorization
+
+The file `DWCOA_Financials_24_v3.xlsx` in the project contains ~400 already-categorized transactions. Use this to:
+1. Build pattern-matching rules for the rules engine
+2. Create few-shot examples for the Claude API prompt
+3. Test auto-categorization accuracy (target: 80%+)
+
+See `specs/001-financial-tracker/training-data.md` for details.
+
+---
+
 ## Success Criteria
 
 ### Measurable Outcomes
@@ -306,7 +329,7 @@ The dashboard shows dues status by unit: expected annual dues (based on ownershi
 ## Assumptions
 
 - Treasurer ensures CSV format conformance (system does not need to handle arbitrary formats)
-- Two years of transaction data maximum (2024-2025 initially)
+- Bank export format is consistent (8 columns as documented)
 - Single-user write access (treasurer only uploads; no concurrent editing concerns)
 - Trust-based access model (shared passwords acceptable for this use case)
 - Cold starts acceptable for Lambda functions
