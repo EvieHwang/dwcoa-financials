@@ -1,147 +1,167 @@
 # DWCOA Financial Dashboard
 
-A serverless financial management application for the Denny Way Condo Owners Association. Built with Python/AWS Lambda backend and vanilla JavaScript frontend.
+A serverless financial management application for the Denny Way Condo Owners Association (9 units). Automates transaction categorization, tracks budgets with timing patterns, manages dues by unit, and generates financial reports.
 
 ## Features
 
-- **Transaction Management**: Upload bank CSV exports, auto-categorize transactions using rules engine and Claude AI
-- **Budget Tracking**: Set annual budgets with timing patterns (monthly, quarterly, annual) for accurate YTD calculations
-- **Dues Tracking**: Track dues payments by unit based on ownership percentages
+- **Transaction Management**: Upload bank CSV exports, auto-categorize using rules engine + Claude AI
+- **Budget Tracking**: Annual budgets with timing patterns (monthly, quarterly, annual) for accurate YTD calculations
+- **Dues Tracking**: Track payments by unit based on ownership percentages
 - **Reserve Fund Monitoring**: Track contributions and expenses with YTD net change
-- **Financial Reports**: View dashboard, download PDF reports, export transaction CSV
+- **Financial Reports**: Dashboard view, PDF download, CSV export
 - **Date Snapshots**: View financial state as of any historical date
 - **Role-Based Access**: Admin (full access) and Homeowner (view-only) roles
+- **Mobile Responsive**: Works on desktop and mobile devices
 
-## Architecture
+## Tech Stack
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   CloudFront    │────▶│   S3 (Frontend) │     │   S3 (Data)     │
-│   Distribution  │     │   Static Files  │     │   SQLite DB     │
-└────────┬────────┘     └─────────────────┘     └────────▲────────┘
-         │                                               │
-         │ /api/*                                        │
-         ▼                                               │
-┌─────────────────┐     ┌─────────────────┐              │
-│   API Gateway   │────▶│     Lambda      │──────────────┘
-│   (HTTP API)    │     │   (Python 3.12) │
-└─────────────────┘     └─────────────────┘
-```
+| Layer | Technology |
+|-------|------------|
+| Frontend | Vanilla HTML/CSS/JavaScript |
+| Backend | Python 3.12, AWS Lambda |
+| Database | SQLite (stored in S3) |
+| API | AWS API Gateway (HTTP API) |
+| CDN | AWS CloudFront |
+| Hosting | AWS S3 (static files) |
+| AI | Claude API (Anthropic) for auto-categorization |
+| PDF | ReportLab |
+| IaC | AWS SAM |
 
-- **Frontend**: Vanilla HTML/CSS/JavaScript hosted on S3
-- **Backend**: Python 3.12 Lambda function with SQLite database stored in S3
-- **Infrastructure**: AWS SAM for deployment, CloudFront for CDN and routing
+## Usage Guide
 
-## Prerequisites
+### Logging In
+
+1. Navigate to the dashboard URL
+2. Enter the password:
+   - **Admin password**: Full access (upload, edit budgets, review transactions)
+   - **Homeowner password**: View-only access (dashboard, downloads)
+3. Your role badge appears in the header (Admin/Homeowner)
+
+### Viewing the Dashboard
+
+The dashboard shows financial data for the current year by default. Use the date picker to view historical snapshots.
+
+- **"View as of" date picker**: Select any date to see balances and YTD figures as of that date
+- **"Reset to Today"**: Return to current date view
+- **Last updated**: Shows when transaction data was last uploaded
+
+### Uploading Transaction Data (Admin Only)
+
+1. Download the latest transactions from your bank as CSV
+2. Click **Choose File** and select the CSV
+3. Click **Upload** - the system will:
+   - Parse and store all transactions
+   - Auto-categorize using rules and AI
+   - Flag low-confidence items for review
+4. Review flagged transactions by clicking **Review Transactions**
+
+### Downloading Reports
+
+- **CSV button**: Download all transactions with categories
+- **PDF button**: Download a formatted report matching the dashboard layout
+
+### Managing Budgets (Admin Only)
+
+1. Click **Manage Budgets** to open the budget editor
+2. Select a year from the dropdown (auto-loads on change)
+3. For each category, set:
+   - **Timing**: Monthly, Quarterly, or Annual
+   - **Annual Amount**: Budget for the full year
+4. Click **Save** to update each row
+5. Use **Copy Budgets** to duplicate a year's budgets to another year
+6. Click **+ Add Category** to create new budget categories
+
+## Dashboard Sections
+
+### Account Balances
+Three account cards showing current balances:
+- **Checking**: Operating account balance
+- **Savings**: Savings account balance
+- **Reserve Fund**: Reserve balance + YTD change (contributions minus expenses)
+- **Total Cash**: Sum of all accounts
+
+### Income & Dues
+- **Summary box**: Budget (YTD), Actual, Remaining totals
+- **Dues table**: Per-unit breakdown showing:
+  - Unit number
+  - Ownership share percentage
+  - Expected dues (YTD, prorated by timing)
+  - Actual payments received
+  - Remaining balance (positive = still owed)
+
+### Operating Expenses
+- **Summary box**: Budget (YTD), Actual, Remaining totals
+- **Expense table**: Per-category breakdown showing:
+  - Category name
+  - YTD Budget (prorated based on timing pattern)
+  - Actual spending
+  - Remaining budget (positive = under budget)
+
+### Admin Controls (Admin Only)
+- **Choose File / Upload**: Upload bank CSV exports
+- **Review Transactions (n)**: Review and categorize flagged transactions
+- **Manage Budgets**: Open budget editor modal
+
+## Setup & Deployment
+
+### Prerequisites
 
 - Python 3.12+
-- AWS CLI configured with appropriate credentials
+- AWS CLI configured
 - AWS SAM CLI
-- Node.js (for local development only)
 
-## Local Development
+### Local Development
 
 ```bash
-# Install Python dependencies
 cd backend
 pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# Run tests
 pytest
-
-# Build SAM application
 sam build
-
-# Start local API
 sam local start-api
 ```
 
-## Deployment
+### Deploy to AWS
 
 ```bash
-# Build the application
+# Build and deploy backend
 sam build
+sam deploy --guided  # First time
+sam deploy           # Subsequent
 
-# Deploy (first time - guided)
-sam deploy --guided
-
-# Deploy (subsequent)
-sam deploy
-
-# Sync frontend to S3
+# Deploy frontend
 aws s3 sync frontend/ s3://dwcoa-frontend-{ACCOUNT_ID}
-
-# Invalidate CloudFront cache
 aws cloudfront create-invalidation --distribution-id {DIST_ID} --paths "/*"
 ```
 
-## Configuration
+### Configuration
 
-The following parameters are configured via AWS Systems Manager Parameter Store or SAM deploy:
+Set these parameters during `sam deploy --guided`:
 
 | Parameter | Description |
 |-----------|-------------|
 | `AdminPasswordHash` | Bcrypt hash for admin login |
 | `BoardPasswordHash` | Bcrypt hash for homeowner login |
 | `AnthropicApiKey` | API key for Claude auto-categorization |
-| `JwtSecret` | Secret for signing authentication tokens |
+| `JwtSecret` | Secret for signing JWT tokens |
 
 ## Project Structure
 
 ```
 ├── backend/
 │   ├── app/
-│   │   ├── main.py           # Lambda handler and routing
-│   │   ├── routes/           # API route handlers
-│   │   │   ├── auth.py       # Authentication
-│   │   │   ├── budgets.py    # Budget management
-│   │   │   ├── categories.py # Category CRUD
-│   │   │   ├── dashboard.py  # Dashboard data
-│   │   │   ├── dues.py       # Dues tracking
-│   │   │   ├── reports.py    # PDF generation
-│   │   │   └── transactions.py
-│   │   └── services/         # Business logic
-│   │       ├── budget_calc.py
-│   │       ├── csv_processor.py
-│   │       ├── database.py
-│   │       └── pdf_generator.py
-│   ├── sql/
-│   │   ├── schema.sql        # Database schema
-│   │   ├── seed.sql          # Initial data
-│   │   └── rules.sql         # Auto-categorization rules
+│   │   ├── main.py              # Lambda handler
+│   │   ├── routes/              # API endpoints
+│   │   └── services/            # Business logic
+│   ├── sql/                     # Database schema
 │   └── requirements.txt
 ├── frontend/
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
-├── specs/                    # Feature specifications
-├── template.yaml             # SAM template
-└── Makefile
+├── specs/                       # Feature specifications
+└── template.yaml                # SAM template
 ```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Authenticate user |
-| GET | `/api/auth/verify` | Verify JWT token |
-| GET | `/api/dashboard` | Get dashboard data |
-| POST | `/api/transactions/upload` | Upload CSV file |
-| GET | `/api/transactions/download` | Download transactions CSV |
-| GET | `/api/reports/pdf` | Generate PDF report |
-| GET | `/api/budgets` | List budgets for year |
-| POST | `/api/budgets` | Create/update budget |
-| POST | `/api/budgets/copy` | Copy budgets between years |
-| GET | `/api/categories` | List categories |
-| POST | `/api/categories` | Create category |
-| PATCH | `/api/categories/{id}` | Update category |
-| GET | `/api/review` | Get transactions needing review |
 
 ## License
 
 Private - All rights reserved.
-
-## Support
-
-For questions or feature requests, contact the project maintainer.
