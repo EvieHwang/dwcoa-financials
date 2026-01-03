@@ -77,6 +77,10 @@ def get_connection() -> sqlite3.Connection:
         s3.download_file(DB_KEY, _db_path)
         _db_connection = sqlite3.connect(_db_path)
         _db_connection.row_factory = sqlite3.Row
+        # Run migrations on existing database
+        run_migrations(_db_connection)
+        _db_connection.commit()
+        save_db()
     else:
         # Create new database
         _db_connection = sqlite3.connect(_db_path)
