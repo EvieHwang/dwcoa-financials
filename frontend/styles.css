@@ -695,7 +695,213 @@ footer a:hover {
     border: 1px solid #f5c6cb;
 }
 
-#budget-edit-table .save-budget-btn {
+#budget-edit-table .save-budget-btn,
+#budget-edit-table .retire-btn,
+#budget-edit-table .create-category-btn,
+#budget-edit-table .cancel-category-btn {
     padding: 0.25rem 0.75rem;
     font-size: 0.75rem;
+}
+
+/* Budget table inputs */
+.name-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.type-select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    width: 100%;
+}
+
+.type-text {
+    font-size: 0.875rem;
+    color: var(--text-color);
+}
+
+/* Budget table column headings centered */
+#budget-edit-table th {
+    text-align: center;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.new-category-row {
+    background: #fffbeb;
+}
+
+.add-category-row {
+    padding: 1rem 0;
+    text-align: left;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    /* Header - mobile layout */
+    header {
+        padding: 1rem;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
+
+    .header-content h1 {
+        font-size: 1.25rem;
+    }
+
+    .header-meta {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    /* Date picker row - mobile layout */
+    .date-picker-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        text-align: center;
+    }
+
+    .date-picker-row .spacer {
+        display: none;
+    }
+
+    #last-updated {
+        margin-top: 0.25rem;
+    }
+
+    /* Admin Controls - mobile layout */
+    .admin-buttons {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .admin-btn-group {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .admin-btn-group.upload-group,
+    .admin-btn-group.budget-group {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .admin-btn-group.review-group {
+        flex: none;
+    }
+
+    .btn-admin.btn-wide {
+        min-width: auto;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    #choose-file-btn {
+        max-width: 160px;
+    }
+
+    #upload-status {
+        display: block;
+        text-align: center;
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+
+    /* Main content - mobile padding */
+    main {
+        padding: 1rem;
+    }
+
+    section {
+        padding: 1rem;
+    }
+
+    /* Income/Expense summary boxes - full width on mobile */
+    .income-summary, .expense-summary {
+        width: 100%;
+    }
+
+    /* Review modal - mobile layout */
+    .review-item {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .review-item select {
+        width: 100%;
+    }
+
+    .review-item button {
+        width: 100%;
+    }
+
+    /* Budget modal - mobile layout */
+    .modal-large {
+        max-width: 95%;
+        padding: 1rem;
+    }
+
+    .budget-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .year-selector, .copy-controls {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    #budget-edit-table {
+        font-size: 0.75rem;
+    }
+
+    #budget-edit-table th,
+    #budget-edit-table td {
+        padding: 0.25rem;
+    }
+
+    .name-input {
+        font-size: 0.75rem;
+        padding: 0.25rem;
+    }
+
+    .amount-input {
+        width: 80px;
+        font-size: 0.75rem;
+        padding: 0.25rem;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    #budget-edit-table .save-budget-btn,
+    #budget-edit-table .retire-btn,
+    #budget-edit-table .create-category-btn,
+    #budget-edit-table .cancel-category-btn {
+        width: 100%;
+        padding: 0.35rem 0.5rem;
+    }
+
+    /* Compact tables - allow horizontal scroll on mobile */
+    .dues-table.compact, .budget-table.compact {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
 }

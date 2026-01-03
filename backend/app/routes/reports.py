@@ -1,29 +1,33 @@
 """Report generation routes."""
 
 import base64
+from datetime import date
 from typing import Optional
 
 from app.services import pdf_generator
 
 
-def handle_generate_pdf(year: Optional[int] = None) -> dict:
+def handle_generate_pdf(as_of_date: Optional[str] = None) -> dict:
     """Generate and return PDF report.
 
     Args:
-        year: Report year
+        as_of_date: Date string (YYYY-MM-DD) for snapshot. Defaults to today.
 
     Returns:
         Response with PDF content
     """
     try:
-        pdf_bytes = pdf_generator.generate_dashboard_pdf(year)
+        pdf_bytes = pdf_generator.generate_dashboard_pdf(as_of_date)
+
+        # Determine filename date
+        date_str = as_of_date or date.today().isoformat()
 
         # Return as base64 for API Gateway
         return {
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': f'attachment; filename="DWCOA_Report_{year or "current"}.pdf"'
+                'Content-Disposition': f'attachment; filename="DWCOA_Report_{date_str}.pdf"'
             },
             'body': base64.b64encode(pdf_bytes).decode('utf-8'),
             'isBase64Encoded': True

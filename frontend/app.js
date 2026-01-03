@@ -287,13 +287,17 @@ async function downloadCSV() {
 }
 
 async function downloadPDF() {
-    const response = await apiRequest('/reports/pdf');
+    // Get the selected date from the date picker
+    const snapshotDateEl = document.getElementById('snapshot-date');
+    const asOfDate = snapshotDateEl ? snapshotDateEl.value : getTodayString();
+
+    const response = await apiRequest(`/reports/pdf?as_of_date=${asOfDate}`);
     const blob = await response.blob();
 
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'dwcoa_report.pdf';
+    a.download = `DWCOA_Report_${asOfDate}.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -395,9 +399,13 @@ function renderBudgetTable(budgets, year) {
     }
 
     tbody.innerHTML = budgets.map(b => `
-        <tr data-category-id="${b.category_id}" data-year="${year}">
-            <td>${b.category_name}</td>
-            <td>${b.category_type}</td>
+        <tr data-category-id="${b.category_id}" data-year="${year}" data-txn-count="${b.transaction_count || 0}">
+            <td>
+                <input type="text" class="name-input" value="${b.category_name}" placeholder="Category name">
+            </td>
+            <td>
+                <span class="type-text">${b.category_type}</span>
+            </td>
             <td>
                 <select class="timing-select">
                     <option value="monthly" ${b.effective_timing === 'monthly' ? 'selected' : ''}>Monthly</option>
@@ -408,8 +416,9 @@ function renderBudgetTable(budgets, year) {
             <td>
                 <input type="number" class="amount-input" value="${b.annual_amount || 0}" step="0.01" min="0">
             </td>
-            <td>
+            <td class="action-buttons">
                 <button class="btn-primary save-budget-btn">Save</button>
+                <button class="btn-secondary retire-btn">Retire</button>
             </td>
         </tr>
     `).join('');
@@ -420,10 +429,23 @@ function renderBudgetTable(budgets, year) {
             const row = e.target.closest('tr');
             const categoryId = parseInt(row.dataset.categoryId);
             const year = parseInt(row.dataset.year);
+            const name = row.querySelector('.name-input').value.trim();
             const amount = parseFloat(row.querySelector('.amount-input').value);
             const timing = row.querySelector('.timing-select').value;
 
+            if (!name) {
+                showBudgetStatus('Category name is required', 'error');
+                return;
+            }
+
             try {
+                // Update category name (type is fixed for existing categories)
+                await apiRequest(`/categories/${categoryId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ name })
+                });
+
+                // Update budget
                 await apiRequest('/budgets', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -436,6 +458,38 @@ function renderBudgetTable(budgets, year) {
                 showBudgetStatus('Budget saved!', 'success');
             } catch (e) {
                 showBudgetStatus('Error saving: ' + e.message, 'error');
+            }
+        });
+    });
+
+    // Add retire handlers
+    tbody.querySelectorAll('.retire-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const row = e.target.closest('tr');
+            const categoryId = parseInt(row.dataset.categoryId);
+            const txnCount = parseInt(row.dataset.txnCount) || 0;
+            const name = row.querySelector('.name-input').value;
+
+            let message = `Retire category "${name}"?`;
+            if (txnCount > 0) {
+                message = `Category "${name}" has ${txnCount} transaction(s). Retiring will hide it from dropdowns but preserve historical data. Continue?`;
+            }
+
+            if (!confirm(message)) {
+                return;
+            }
+
+            try {
+                await apiRequest(`/categories/${categoryId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ active: false })
+                });
+                showBudgetStatus(`Category "${name}" retired`, 'success');
+                // Reload budgets to reflect change
+                const year = parseInt(row.dataset.year);
+                await loadBudgets(year);
+            } catch (e) {
+                showBudgetStatus('Error retiring: ' + e.message, 'error');
             }
         });
     });
@@ -603,7 +657,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Budget management
     const manageBudgetsBtn = document.getElementById('manage-budgets-btn');
-    const loadBudgetsBtn = document.getElementById('load-budgets-btn');
     const copyBudgetsBtn = document.getElementById('copy-budgets-btn');
     const closeBudgetBtn = document.getElementById('close-budget-btn');
     const budgetYearEl = document.getElementById('budget-year');
@@ -614,10 +667,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadBudgets(year);
             document.getElementById('budget-modal').classList.remove('hidden');
         });
-    }
 
-    if (loadBudgetsBtn && budgetYearEl) {
-        loadBudgetsBtn.addEventListener('click', async () => {
+        // Auto-load when year selection changes
+        budgetYearEl.addEventListener('change', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
         });
@@ -651,4 +703,110 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadDashboard();  // Refresh dashboard with any changes
         });
     }
+
+    // Add Category button
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    if (addCategoryBtn) {
+        addCategoryBtn.addEventListener('click', () => {
+            addNewCategoryRow();
+        });
+    }
 });
+
+// Add new category row to the budget table
+function addNewCategoryRow() {
+    const tbody = document.getElementById('budget-edit-body');
+    const year = parseInt(document.getElementById('budget-year').value);
+
+    // Check if there's already a new row being added
+    if (tbody.querySelector('tr.new-category-row')) {
+        showBudgetStatus('Please save or cancel the current new category first', 'error');
+        return;
+    }
+
+    const newRow = document.createElement('tr');
+    newRow.className = 'new-category-row';
+    newRow.dataset.year = year;
+    newRow.innerHTML = `
+        <td>
+            <input type="text" class="name-input" placeholder="Category name" autofocus>
+        </td>
+        <td>
+            <select class="type-select">
+                <option value="Expense">Expense</option>
+                <option value="Income">Income</option>
+                <option value="Transfer">Transfer</option>
+            </select>
+        </td>
+        <td>
+            <select class="timing-select">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="annual">Annual</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" class="amount-input" value="0" step="0.01" min="0">
+        </td>
+        <td class="action-buttons">
+            <button class="btn-primary create-category-btn">Create</button>
+            <button class="btn-secondary cancel-category-btn">Cancel</button>
+        </td>
+    `;
+
+    tbody.appendChild(newRow);
+
+    // Focus the name input
+    newRow.querySelector('.name-input').focus();
+
+    // Create button handler
+    newRow.querySelector('.create-category-btn').addEventListener('click', async () => {
+        const name = newRow.querySelector('.name-input').value.trim();
+        const type = newRow.querySelector('.type-select').value;
+        const timing = newRow.querySelector('.timing-select').value;
+        const amount = parseFloat(newRow.querySelector('.amount-input').value) || 0;
+
+        if (!name) {
+            showBudgetStatus('Category name is required', 'error');
+            return;
+        }
+
+        try {
+            // Create the category
+            const catResponse = await apiRequest('/categories', {
+                method: 'POST',
+                body: JSON.stringify({ name, type, timing })
+            });
+
+            if (!catResponse.ok) {
+                const error = await catResponse.json();
+                throw new Error(error.message || 'Failed to create category');
+            }
+
+            const category = await catResponse.json();
+
+            // Create budget for this category
+            await apiRequest('/budgets', {
+                method: 'POST',
+                body: JSON.stringify({
+                    year: year,
+                    category_id: category.id,
+                    annual_amount: amount,
+                    timing: timing
+                })
+            });
+
+            showBudgetStatus(`Category "${name}" created!`, 'success');
+
+            // Reload budgets to show new category in proper order
+            await loadBudgets(year);
+        } catch (e) {
+            showBudgetStatus('Error: ' + e.message, 'error');
+        }
+    });
+
+    // Cancel button handler
+    newRow.querySelector('.cancel-category-btn').addEventListener('click', () => {
+        newRow.remove();
+    });
+}

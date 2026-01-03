@@ -13,9 +13,17 @@ def handle_list(year: int) -> dict:
         year: Budget year
 
     Returns:
-        Response with budget list
+        Response with budget list including transaction counts
     """
     budgets = database.get_budgets(year)
+
+    # Add transaction count for each category
+    for budget in budgets:
+        count_row = database.fetch_one(
+            "SELECT COUNT(*) as count FROM transactions WHERE category_id = ?",
+            (budget['category_id'],)
+        )
+        budget['transaction_count'] = count_row['count'] if count_row else 0
 
     return {
         'statusCode': 200,

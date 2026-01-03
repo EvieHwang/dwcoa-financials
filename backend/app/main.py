@@ -185,8 +185,8 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
 
     # Reports
     if path == '/api/reports/pdf' and method == 'GET':
-        year = int(query.get('year', 0)) or None
-        return reports.handle_generate_pdf(year)
+        as_of_date = query.get('as_of_date')
+        return reports.handle_generate_pdf(as_of_date)
 
     # Review queue
     if path == '/api/review' and method == 'GET':

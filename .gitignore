@@ -42,7 +42,6 @@ yarn-error.log*
 
 # AWS SAM
 .aws-sam/
-samconfig.toml
 
 # Testing
 .pytest_cache/
@@ -58,10 +57,14 @@ Thumbs.db
 # Project specific
 *.db
 *.sqlite
-data/uploads/
-data/transactions/
 *.pdf
 !docs/*.pdf
+
+# Sensitive data - do not commit
+data/
+CLAUDE.md
+.claude/
+samconfig.toml
 
 # Secrets
 .env.local
