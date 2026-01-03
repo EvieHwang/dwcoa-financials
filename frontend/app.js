@@ -226,13 +226,14 @@ function renderDashboard(data) {
         </tr>
     `).join('');
 
-    // Reserve fund - look for "Reserve Contribution" category in transfer data
-    const reserve = data.reserve_fund || { budget: 0, actual: 0, remaining: 0 };
+    // Reserve fund - contributions in, expenses out, net change
+    const reserve = data.reserve_fund || { budget: 0, contributions: 0, expenses: 0, net: 0 };
     document.getElementById('reserve-budget').textContent = formatCurrency(reserve.budget);
-    document.getElementById('reserve-actual').textContent = formatCurrency(reserve.actual);
-    const reserveRemaining = document.getElementById('reserve-remaining');
-    reserveRemaining.textContent = formatCurrency(reserve.remaining);
-    reserveRemaining.className = reserve.remaining >= 0 ? 'positive' : 'negative';
+    document.getElementById('reserve-contributions').textContent = formatCurrency(reserve.contributions);
+    document.getElementById('reserve-expenses').textContent = formatCurrency(reserve.expenses);
+    const reserveNet = document.getElementById('reserve-net');
+    reserveNet.textContent = formatCurrency(reserve.net);
+    reserveNet.className = reserve.net >= 0 ? 'positive' : 'negative';
 
     // Review count
     document.getElementById('review-count').textContent =

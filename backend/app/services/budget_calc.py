@@ -234,18 +234,18 @@ def get_total_cash() -> float:
 
 
 def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dict:
-    """Get reserve fund contribution status.
+    """Get reserve fund status showing contributions, expenses, and net.
 
-    Reserve Contribution is a Transfer category - it represents money moved
-    from Checking to Reserve Fund account, not an expense. This is tracked
-    separately from operating expenses.
+    Reserve Contribution is a Transfer category - money moved from Checking
+    to Reserve Fund. Reserve Expenses are paid from the Reserve Fund account.
+    This section shows the net activity vs the contribution budget.
 
     Args:
         year: Budget year
         as_of_date: Date to calculate through
 
     Returns:
-        Dict with budget, actual, and remaining for reserve contribution
+        Dict with budget, contributions_in, expenses_out, and net
     """
     if as_of_date is None:
         as_of_date = date.today()
@@ -264,9 +264,8 @@ def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dic
     timing = budget_row['timing'] if budget_row else 'monthly'
     ytd_budget = calculate_ytd_budget(annual_budget, timing, as_of_date)
 
-    # Get actual transfers to Reserve Fund (debits from Checking to Reserve)
-    # Reserve Contribution transactions are credits to the Reserve Fund account
-    actual_sql = """
+    # Get contributions IN to Reserve Fund
+    contributions_sql = """
         SELECT COALESCE(SUM(t.credit), 0) as amount
         FROM transactions t
         JOIN categories c ON t.category_id = c.id
@@ -274,11 +273,25 @@ def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dic
         AND strftime('%Y', t.post_date) = ?
         AND t.post_date <= ?
     """
-    actual_row = database.fetch_one(actual_sql, (str(year), as_of_date.isoformat()))
-    actual = actual_row['amount'] if actual_row else 0
+    contrib_row = database.fetch_one(contributions_sql, (str(year), as_of_date.isoformat()))
+    contributions = contrib_row['amount'] if contrib_row else 0
+
+    # Get expenses OUT of Reserve Fund (debits from Reserve Fund account)
+    expenses_sql = """
+        SELECT COALESCE(SUM(t.debit), 0) as amount
+        FROM transactions t
+        WHERE t.account_name = 'Reserve Fund'
+        AND strftime('%Y', t.post_date) = ?
+        AND t.post_date <= ?
+    """
+    expense_row = database.fetch_one(expenses_sql, (str(year), as_of_date.isoformat()))
+    expenses = expense_row['amount'] if expense_row else 0
+
+    net = contributions - expenses
 
     return {
         'budget': round(ytd_budget, 2),
-        'actual': round(actual, 2),
-        'remaining': round(ytd_budget - actual, 2)
+        'contributions': round(contributions, 2),
+        'expenses': round(expenses, 2),
+        'net': round(net, 2)
     }
