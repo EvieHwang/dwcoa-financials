@@ -333,11 +333,17 @@ def get_monthly_cashflow(year: int, as_of_date: Optional[date] = None) -> List[d
     max_month = as_of_date.month if as_of_date.year == year else 12
 
     for month in range(1, max_month + 1):
-        data = month_map.get(month, {})
+        row = month_map.get(month)
+        if row:
+            income = row['income'] or 0
+            expenses = row['expenses'] or 0
+        else:
+            income = 0
+            expenses = 0
         monthly_data.append({
             'month': month,
-            'income': round(data.get('income', 0) or 0, 2),
-            'expenses': round(data.get('expenses', 0) or 0, 2)
+            'income': round(income, 2),
+            'expenses': round(expenses, 2)
         })
 
     return monthly_data
