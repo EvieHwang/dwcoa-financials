@@ -145,15 +145,22 @@ function renderDashboard(data) {
 
     // Update date picker and snapshot label
     const snapshotDate = data.as_of_date || getTodayString();
-    document.getElementById('snapshot-date').value = snapshotDate;
+    const datePickerEl = document.getElementById('snapshot-date');
+    const snapshotLabelEl = document.getElementById('snapshot-label');
 
-    const today = getTodayString();
-    if (snapshotDate === today) {
-        document.getElementById('snapshot-label').textContent = '(Current)';
-    } else {
-        const d = new Date(snapshotDate + 'T00:00:00');
-        const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        document.getElementById('snapshot-label').textContent = `Showing ${data.year} data through ${formatted}`;
+    if (datePickerEl) {
+        datePickerEl.value = snapshotDate;
+    }
+
+    if (snapshotLabelEl) {
+        const today = getTodayString();
+        if (snapshotDate === today) {
+            snapshotLabelEl.textContent = '(Current)';
+        } else {
+            const d = new Date(snapshotDate + 'T00:00:00');
+            const formatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            snapshotLabelEl.textContent = `Showing ${data.year} data through ${formatted}`;
+        }
     }
 
     // User role
@@ -487,28 +494,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Logout
     document.getElementById('logout-btn').addEventListener('click', logout);
 
-    // Date picker - initialize with today
-    document.getElementById('snapshot-date').value = getTodayString();
+    // Date picker - initialize with today (only if element exists)
+    const snapshotDateEl = document.getElementById('snapshot-date');
+    const loadSnapshotBtn = document.getElementById('load-snapshot-btn');
+    const todayBtn = document.getElementById('today-btn');
+
+    if (snapshotDateEl) {
+        snapshotDateEl.value = getTodayString();
+
+        // Also load on Enter key in date picker
+        snapshotDateEl.addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                await loadDashboard(snapshotDateEl.value);
+            }
+        });
+    }
 
     // Load snapshot for selected date
-    document.getElementById('load-snapshot-btn').addEventListener('click', async () => {
-        const dateValue = document.getElementById('snapshot-date').value;
-        await loadDashboard(dateValue);
-    });
+    if (loadSnapshotBtn) {
+        loadSnapshotBtn.addEventListener('click', async () => {
+            const dateValue = snapshotDateEl ? snapshotDateEl.value : null;
+            await loadDashboard(dateValue);
+        });
+    }
 
     // Today button
-    document.getElementById('today-btn').addEventListener('click', async () => {
-        document.getElementById('snapshot-date').value = getTodayString();
-        await loadDashboard();
-    });
-
-    // Also load on Enter key in date picker
-    document.getElementById('snapshot-date').addEventListener('keypress', async (e) => {
-        if (e.key === 'Enter') {
-            const dateValue = document.getElementById('snapshot-date').value;
-            await loadDashboard(dateValue);
-        }
-    });
+    if (todayBtn) {
+        todayBtn.addEventListener('click', async () => {
+            if (snapshotDateEl) {
+                snapshotDateEl.value = getTodayString();
+            }
+            await loadDashboard();
+        });
+    }
 
     // Upload
     document.getElementById('upload-btn').addEventListener('click', async () => {
