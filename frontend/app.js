@@ -287,8 +287,20 @@ async function checkAuth() {
     return false;
 }
 
+// Loading overlay functions
+function showLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
 // Dashboard functions
 async function loadDashboard(asOfDate = null) {
+    showLoading();
     try {
         let url = '/dashboard';
         if (asOfDate) {
@@ -301,6 +313,8 @@ async function loadDashboard(asOfDate = null) {
     } catch (e) {
         console.error('Failed to load dashboard:', e);
         alert('Failed to load dashboard: ' + e.message);
+    } finally {
+        hideLoading();
     }
 }
 
