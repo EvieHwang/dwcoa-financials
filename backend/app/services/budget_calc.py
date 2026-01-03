@@ -118,6 +118,10 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
         ytd_actual = actuals.get(category_id, 0)
         remaining = ytd_budget - ytd_actual
 
+        # Skip categories with zero budget AND zero actual
+        if ytd_budget == 0 and ytd_actual == 0:
+            continue
+
         cat_data = {
             'id': category_id,
             'category': budget['category_name'],
