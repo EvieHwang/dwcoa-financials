@@ -41,6 +41,9 @@ def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
     # Get dues status as of date
     dues_data = dues.get_dues_status(year, as_of_date=snapshot_date)
 
+    # Get reserve fund status
+    reserve_fund = budget_calc.get_reserve_fund_status(year, as_of_date=snapshot_date)
+
     # Get review count (always current, not date-filtered)
     review_row = database.fetch_one(
         "SELECT COUNT(*) as count FROM transactions WHERE needs_review = 1"
@@ -59,6 +62,7 @@ def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
             'income_summary': budget_summary['income_summary'],
             'expense_summary': budget_summary['expense_summary'],
             'dues_status': dues_data['units'],
+            'reserve_fund': reserve_fund,
             'review_count': review_count
         })
     }

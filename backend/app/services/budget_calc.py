@@ -231,3 +231,54 @@ def get_total_cash() -> float:
     """
     balances = get_account_balances()
     return sum(b['balance'] for b in balances)
+
+
+def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dict:
+    """Get reserve fund contribution status.
+
+    Reserve Contribution is a Transfer category - it represents money moved
+    from Checking to Reserve Fund account, not an expense. This is tracked
+    separately from operating expenses.
+
+    Args:
+        year: Budget year
+        as_of_date: Date to calculate through
+
+    Returns:
+        Dict with budget, actual, and remaining for reserve contribution
+    """
+    if as_of_date is None:
+        as_of_date = date.today()
+
+    # Get budget for Reserve Contribution category
+    budget_sql = """
+        SELECT b.annual_amount, b.timing
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        WHERE c.name = 'Reserve Contribution'
+        AND b.year = ?
+    """
+    budget_row = database.fetch_one(budget_sql, (year,))
+
+    annual_budget = budget_row['annual_amount'] if budget_row else 0
+    timing = budget_row['timing'] if budget_row else 'monthly'
+    ytd_budget = calculate_ytd_budget(annual_budget, timing, as_of_date)
+
+    # Get actual transfers to Reserve Fund (debits from Checking to Reserve)
+    # Reserve Contribution transactions are credits to the Reserve Fund account
+    actual_sql = """
+        SELECT COALESCE(SUM(t.credit), 0) as amount
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE c.name = 'Reserve Contribution'
+        AND strftime('%Y', t.post_date) = ?
+        AND t.post_date <= ?
+    """
+    actual_row = database.fetch_one(actual_sql, (str(year), as_of_date.isoformat()))
+    actual = actual_row['amount'] if actual_row else 0
+
+    return {
+        'budget': round(ytd_budget, 2),
+        'actual': round(actual, 2),
+        'remaining': round(ytd_budget - actual, 2)
+    }

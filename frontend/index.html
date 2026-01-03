@@ -29,14 +29,15 @@
                 <div class="header-meta">
                     <span id="last-updated"></span>
                     <span id="user-role" class="badge"></span>
-                    <button id="logout-btn" class="btn-secondary">Logout</button>
+                    <button id="download-csv-btn" class="btn-header">CSV</button>
+                    <button id="download-pdf-btn" class="btn-header">PDF</button>
+                    <button id="logout-btn" class="btn-header">Logout</button>
                 </div>
             </div>
             <div class="date-picker-row">
                 <label for="snapshot-date">View as of:</label>
                 <input type="date" id="snapshot-date">
-                <button id="load-snapshot-btn" class="btn-secondary">Load</button>
-                <button id="today-btn" class="btn-secondary">Today</button>
+                <button id="reset-today-btn" class="btn-secondary">Reset to Today</button>
                 <span id="snapshot-label"></span>
             </div>
         </header>
@@ -53,77 +54,90 @@
                 </div>
             </section>
 
-            <!-- Budget Summary -->
-            <section id="budget-section">
-                <div class="budget-columns">
-                    <!-- Income -->
-                    <div class="budget-column">
-                        <h2>Income</h2>
+            <!-- Income & Dues -->
+            <section id="income-section">
+                <h2>Income & Dues</h2>
+                <div class="income-grid">
+                    <div class="income-summary">
                         <div class="summary-row">
-                            <span>YTD Budget:</span>
-                            <span id="income-ytd-budget"></span>
+                            <span>Expected Dues:</span>
+                            <span id="dues-expected"></span>
                         </div>
                         <div class="summary-row">
-                            <span>YTD Actual:</span>
-                            <span id="income-ytd-actual"></span>
+                            <span>Received YTD:</span>
+                            <span id="dues-received"></span>
                         </div>
-                        <table id="income-table" class="budget-table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>YTD Budget</th>
-                                    <th>YTD Actual</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                        <div class="summary-row">
+                            <span>Other Income:</span>
+                            <span id="other-income"></span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total Income:</span>
+                            <span id="total-income"></span>
+                        </div>
                     </div>
-
-                    <!-- Expenses -->
-                    <div class="budget-column">
-                        <h2>Expenses</h2>
-                        <div class="summary-row">
-                            <span>YTD Budget:</span>
-                            <span id="expense-ytd-budget"></span>
-                        </div>
-                        <div class="summary-row">
-                            <span>YTD Actual:</span>
-                            <span id="expense-ytd-actual"></span>
-                        </div>
-                        <div class="summary-row remaining">
-                            <span>Remaining:</span>
-                            <span id="expense-remaining"></span>
-                        </div>
-                        <table id="expense-table" class="budget-table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th>YTD Budget</th>
-                                    <th>Actual</th>
-                                    <th>Remaining</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
+                    <table id="dues-table" class="dues-table compact">
+                        <thead>
+                            <tr>
+                                <th>Unit</th>
+                                <th>Share</th>
+                                <th>Expected</th>
+                                <th>Paid</th>
+                                <th>Due</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </section>
 
-            <!-- Dues Status -->
-            <section id="dues-section">
-                <h2>Dues Status by Unit</h2>
-                <table id="dues-table" class="dues-table">
+            <!-- Expenses -->
+            <section id="expense-section">
+                <h2>Operating Expenses</h2>
+                <div class="expense-summary">
+                    <div class="summary-row">
+                        <span>YTD Budget:</span>
+                        <span id="expense-ytd-budget"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>YTD Actual:</span>
+                        <span id="expense-ytd-actual"></span>
+                    </div>
+                    <div class="summary-row remaining">
+                        <span>Remaining:</span>
+                        <span id="expense-remaining"></span>
+                    </div>
+                </div>
+                <table id="expense-table" class="budget-table">
                     <thead>
                         <tr>
-                            <th>Unit</th>
-                            <th>Ownership</th>
-                            <th>Expected</th>
-                            <th>Paid YTD</th>
-                            <th>Outstanding</th>
+                            <th>Category</th>
+                            <th>Budget</th>
+                            <th>Actual</th>
+                            <th>Remaining</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
+            </section>
+
+            <!-- Reserve Fund -->
+            <section id="reserve-section">
+                <h2>Reserve Fund</h2>
+                <div class="reserve-summary">
+                    <div class="summary-row">
+                        <span>Annual Contribution Budget:</span>
+                        <span id="reserve-budget"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>YTD Transferred:</span>
+                        <span id="reserve-actual"></span>
+                    </div>
+                    <div class="summary-row remaining">
+                        <span>Remaining to Transfer:</span>
+                        <span id="reserve-remaining"></span>
+                    </div>
+                </div>
             </section>
 
             <!-- Admin Controls -->
@@ -148,20 +162,12 @@
                 </div>
             </section>
 
-            <!-- Download Controls -->
-            <section id="download-section">
-                <h2>Downloads</h2>
-                <div class="download-controls">
-                    <button id="download-csv-btn" class="btn-secondary">Download CSV</button>
-                    <button id="download-pdf-btn" class="btn-secondary">Download PDF</button>
-                    <button id="print-btn" class="btn-secondary">Print Dashboard</button>
-                </div>
-            </section>
         </main>
 
         <!-- Footer -->
         <footer>
             <p>Denny Way Condo Owners Association</p>
+            <p>Questions or feature requests? Email <a href="mailto:eve@evehwang.com">eve@evehwang.com</a></p>
         </footer>
     </div>
 

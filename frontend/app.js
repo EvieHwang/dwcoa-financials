@@ -30,8 +30,9 @@ function formatDate(dateStr) {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
-    });
+        minute: '2-digit',
+        timeZone: 'America/Los_Angeles'
+    }) + ' PT';
 }
 
 // API functions
@@ -163,13 +164,15 @@ function renderDashboard(data) {
         }
     }
 
-    // User role
+    // User role - show badge and control admin visibility
     const roleEl = document.getElementById('user-role');
-    roleEl.textContent = userRole === 'admin' ? 'Admin' : 'Board';
+    roleEl.textContent = userRole === 'admin' ? 'Admin' : 'Homeowner';
 
-    // Show admin controls if admin
+    // Show/hide admin controls based on role
     if (userRole === 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+    } else {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
 
     // Account balances
@@ -183,17 +186,26 @@ function renderDashboard(data) {
 
     document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
 
-    // Income summary
+    // Income & Dues summary
     const income = data.income_summary;
-    document.getElementById('income-ytd-budget').textContent = formatCurrency(income.ytd_budget);
-    document.getElementById('income-ytd-actual').textContent = formatCurrency(income.ytd_actual);
+    const duesExpected = data.dues_status.reduce((sum, u) => sum + u.expected_annual, 0);
+    const duesReceived = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
+    const otherIncome = income.ytd_actual - duesReceived;
 
-    const incomeTable = document.querySelector('#income-table tbody');
-    incomeTable.innerHTML = income.categories.map(cat => `
+    document.getElementById('dues-expected').textContent = formatCurrency(duesExpected);
+    document.getElementById('dues-received').textContent = formatCurrency(duesReceived);
+    document.getElementById('other-income').textContent = formatCurrency(otherIncome > 0 ? otherIncome : 0);
+    document.getElementById('total-income').textContent = formatCurrency(income.ytd_actual);
+
+    // Dues table (compact)
+    const duesTable = document.querySelector('#dues-table tbody');
+    duesTable.innerHTML = data.dues_status.map(unit => `
         <tr>
-            <td>${cat.category}</td>
-            <td>${formatCurrency(cat.ytd_budget)}</td>
-            <td>${formatCurrency(cat.ytd_actual)}</td>
+            <td>${unit.unit}</td>
+            <td>${formatPercent(unit.ownership_pct)}</td>
+            <td>${formatCurrency(unit.expected_annual)}</td>
+            <td>${formatCurrency(unit.paid_ytd)}</td>
+            <td class="${unit.outstanding > 0 ? 'negative' : 'positive'}">${formatCurrency(unit.outstanding)}</td>
         </tr>
     `).join('');
 
@@ -214,17 +226,13 @@ function renderDashboard(data) {
         </tr>
     `).join('');
 
-    // Dues status
-    const duesTable = document.querySelector('#dues-table tbody');
-    duesTable.innerHTML = data.dues_status.map(unit => `
-        <tr>
-            <td>${unit.unit}</td>
-            <td>${formatPercent(unit.ownership_pct)}</td>
-            <td>${formatCurrency(unit.expected_annual)}</td>
-            <td>${formatCurrency(unit.paid_ytd)}</td>
-            <td class="${unit.outstanding > 0 ? 'negative' : 'positive'}">${formatCurrency(unit.outstanding)}</td>
-        </tr>
-    `).join('');
+    // Reserve fund - look for "Reserve Contribution" category in transfer data
+    const reserve = data.reserve_fund || { budget: 0, actual: 0, remaining: 0 };
+    document.getElementById('reserve-budget').textContent = formatCurrency(reserve.budget);
+    document.getElementById('reserve-actual').textContent = formatCurrency(reserve.actual);
+    const reserveRemaining = document.getElementById('reserve-remaining');
+    reserveRemaining.textContent = formatCurrency(reserve.remaining);
+    reserveRemaining.className = reserve.remaining >= 0 ? 'positive' : 'negative';
 
     // Review count
     document.getElementById('review-count').textContent =
@@ -494,33 +502,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Logout
     document.getElementById('logout-btn').addEventListener('click', logout);
 
-    // Date picker - initialize with today (only if element exists)
+    // Date picker - initialize with today and auto-load on change
     const snapshotDateEl = document.getElementById('snapshot-date');
-    const loadSnapshotBtn = document.getElementById('load-snapshot-btn');
-    const todayBtn = document.getElementById('today-btn');
+    const resetTodayBtn = document.getElementById('reset-today-btn');
 
     if (snapshotDateEl) {
         snapshotDateEl.value = getTodayString();
 
-        // Also load on Enter key in date picker
-        snapshotDateEl.addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                await loadDashboard(snapshotDateEl.value);
-            }
+        // Auto-load when date changes
+        snapshotDateEl.addEventListener('change', async () => {
+            await loadDashboard(snapshotDateEl.value);
         });
     }
 
-    // Load snapshot for selected date
-    if (loadSnapshotBtn) {
-        loadSnapshotBtn.addEventListener('click', async () => {
-            const dateValue = snapshotDateEl ? snapshotDateEl.value : null;
-            await loadDashboard(dateValue);
-        });
-    }
-
-    // Today button
-    if (todayBtn) {
-        todayBtn.addEventListener('click', async () => {
+    // Reset to Today button
+    if (resetTodayBtn) {
+        resetTodayBtn.addEventListener('click', async () => {
             if (snapshotDateEl) {
                 snapshotDateEl.value = getTodayString();
             }
