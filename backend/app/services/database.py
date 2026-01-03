@@ -241,16 +241,26 @@ def get_units() -> List[dict]:
 
 
 def get_budgets(year: int) -> List[dict]:
-    """Get all budgets for a year with category info."""
+    """Get all active categories with their budgets for a year.
+
+    Returns ALL active categories, not just ones with existing budgets.
+    Categories without a budget entry will show annual_amount=0.
+    """
     sql = """
-        SELECT b.*, c.name as category_name, c.type as category_type,
-               COALESCE(b.timing, c.timing) as effective_timing
-        FROM budgets b
-        JOIN categories c ON b.category_id = c.id
-        WHERE b.year = ?
+        SELECT
+            c.id as category_id,
+            c.name as category_name,
+            c.type as category_type,
+            COALESCE(b.annual_amount, 0) as annual_amount,
+            COALESCE(b.timing, c.timing) as effective_timing,
+            b.id as budget_id,
+            ? as year
+        FROM categories c
+        LEFT JOIN budgets b ON b.category_id = c.id AND b.year = ?
+        WHERE c.active = 1
         ORDER BY c.type, c.name
     """
-    return rows_to_dicts(fetch_all(sql, (year,)))
+    return rows_to_dicts(fetch_all(sql, (year, year)))
 
 
 def get_config(key: str) -> Optional[str]:
