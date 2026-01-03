@@ -5,6 +5,7 @@ A serverless financial management application for the Denny Way Condo Owners Ass
 ## Features
 
 - **Transaction Management**: Upload bank CSV exports, auto-categorize using rules engine + Claude AI
+- **Transaction Viewer**: Sortable, filterable data table with pagination and CSV export
 - **Budget Tracking**: Annual budgets with timing patterns (monthly, quarterly, annual) for accurate YTD calculations
 - **Dues Tracking**: Track payments by unit based on ownership percentages
 - **Reserve Fund Monitoring**: Track contributions and expenses with YTD net change
@@ -17,7 +18,7 @@ A serverless financial management application for the Denny Way Condo Owners Ass
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Vanilla HTML/CSS/JavaScript |
+| Frontend | Vanilla HTML/CSS/JavaScript, Tabulator.js |
 | Backend | Python 3.12, AWS Lambda |
 | Database | SQLite (stored in S3) |
 | API | AWS API Gateway (HTTP API) |
@@ -101,6 +102,14 @@ Three account cards showing current balances:
 - **Choose File / Upload**: Upload bank CSV exports
 - **Review Transactions (n)**: Review and categorize flagged transactions
 - **Manage Budgets**: Open budget editor modal
+
+### Transaction History
+Interactive data table showing all uploaded transactions:
+- **Columns**: Post Date, Account, Category, Description, Debit, Credit
+- **Sorting**: Click any column header to sort ascending/descending
+- **Filtering**: Type in header filter boxes to search within columns
+- **Pagination**: Choose 25, 50, or 100 rows per page
+- **Export CSV**: Download filtered/sorted transactions
 
 ## Setup & Deployment
 

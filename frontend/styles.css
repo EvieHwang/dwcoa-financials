@@ -744,6 +744,107 @@ footer a:hover {
     text-align: left;
 }
 
+/* Transaction Viewer */
+#transactions-section {
+    margin-top: 1.5rem;
+}
+
+.transactions-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1rem;
+}
+
+#transactions-table {
+    font-size: 0.875rem;
+}
+
+/* Tabulator custom styles to match app theme */
+.tabulator {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.tabulator .tabulator-header {
+    background: var(--bg-color);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tabulator .tabulator-header .tabulator-col {
+    background: var(--bg-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.tabulator .tabulator-header .tabulator-col-content {
+    padding: 8px;
+}
+
+.tabulator .tabulator-header .tabulator-col .tabulator-col-title {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.tabulator .tabulator-tableHolder .tabulator-table .tabulator-row {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tabulator .tabulator-tableHolder .tabulator-table .tabulator-row:hover {
+    background: var(--bg-color);
+}
+
+.tabulator .tabulator-tableHolder .tabulator-table .tabulator-row .tabulator-cell {
+    padding: 8px;
+    border-right: 1px solid var(--border-color);
+}
+
+.tabulator .tabulator-footer {
+    background: var(--bg-color);
+    border-top: 1px solid var(--border-color);
+    padding: 8px;
+}
+
+.tabulator .tabulator-footer .tabulator-paginator {
+    color: var(--text-color);
+}
+
+.tabulator .tabulator-footer .tabulator-page {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    margin: 0 2px;
+}
+
+.tabulator .tabulator-footer .tabulator-page.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.tabulator .tabulator-footer .tabulator-page-size {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+/* Header filter inputs */
+.tabulator .tabulator-header-filter input {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+/* Uncategorized label */
+.uncategorized {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
     /* Header - mobile layout */
@@ -903,5 +1004,22 @@ footer a:hover {
         display: block;
         overflow-x: auto;
         white-space: nowrap;
+    }
+
+    /* Transaction Viewer - mobile */
+    .transactions-controls {
+        justify-content: center;
+    }
+
+    #transactions-table {
+        font-size: 0.75rem;
+    }
+
+    .tabulator .tabulator-header .tabulator-col-content {
+        padding: 4px;
+    }
+
+    .tabulator .tabulator-tableHolder .tabulator-table .tabulator-row .tabulator-cell {
+        padding: 4px;
     }
 }

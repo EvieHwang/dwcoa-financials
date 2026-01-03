@@ -542,6 +542,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('login-modal').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
         await loadDashboard();
+        await initTransactionsTable();
     }
 
     // Login form
@@ -555,6 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('login-modal').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
             await loadDashboard();
+            await initTransactionsTable();
         } catch (e) {
             errorEl.textContent = e.message;
             errorEl.classList.remove('hidden');
@@ -621,6 +623,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 fileInput.value = '';
                 chooseFileBtn.textContent = 'Choose File';
                 await loadDashboard();
+                // Refresh transactions table
+                if (transactionsTable) {
+                    const transactions = await loadTransactions();
+                    transactionsTable.setData(transactions);
+                }
             } catch (e) {
                 if (statusEl) statusEl.textContent = 'Error: ' + e.message;
                 uploadBtn.disabled = false;
@@ -636,6 +643,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (downloadCsvBtn) downloadCsvBtn.addEventListener('click', downloadCSV);
     if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', downloadPDF);
     if (printBtn) printBtn.addEventListener('click', () => window.print());
+
+    // Transaction Viewer export
+    const exportTransactionsBtn = document.getElementById('export-transactions-btn');
+    if (exportTransactionsBtn) {
+        exportTransactionsBtn.addEventListener('click', exportFilteredTransactions);
+    }
 
     // Review
     const reviewBtn = document.getElementById('review-btn');
@@ -809,4 +822,90 @@ function addNewCategoryRow() {
     newRow.querySelector('.cancel-category-btn').addEventListener('click', () => {
         newRow.remove();
     });
+}
+
+// Transaction Viewer - Tabulator
+let transactionsTable = null;
+
+async function loadTransactions() {
+    try {
+        // Get all transactions (no pagination from server, let Tabulator handle it)
+        const response = await apiRequest('/transactions?limit=10000');
+        const data = await response.json();
+        return data.transactions;
+    } catch (e) {
+        console.error('Failed to load transactions:', e);
+        return [];
+    }
+}
+
+async function initTransactionsTable() {
+    const transactions = await loadTransactions();
+
+    transactionsTable = new Tabulator("#transactions-table", {
+        data: transactions,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: true,
+        paginationSize: 25,
+        paginationSizeSelector: [25, 50, 100],
+        initialSort: [{ column: "post_date", dir: "desc" }],
+        placeholder: "No transactions uploaded",
+        columns: [
+            {
+                title: "Post Date",
+                field: "post_date",
+                sorter: "date",
+                headerFilter: "input",
+                width: 120
+            },
+            {
+                title: "Account",
+                field: "account_name",
+                sorter: "string",
+                headerFilter: "input",
+                width: 120
+            },
+            {
+                title: "Category",
+                field: "category",
+                sorter: "string",
+                headerFilter: "input",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return val || '<span class="uncategorized">Uncategorized</span>';
+                }
+            },
+            {
+                title: "Description",
+                field: "description",
+                sorter: "string",
+                headerFilter: "input"
+            },
+            {
+                title: "Debit",
+                field: "debit",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: "money",
+                formatterParams: { symbol: "$", precision: 2 },
+                width: 110
+            },
+            {
+                title: "Credit",
+                field: "credit",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: "money",
+                formatterParams: { symbol: "$", precision: 2 },
+                width: 110
+            }
+        ]
+    });
+}
+
+function exportFilteredTransactions() {
+    if (transactionsTable) {
+        transactionsTable.download("csv", "dwcoa_transactions_filtered.csv");
+    }
 }
