@@ -144,29 +144,27 @@ def handle_update(rule_id: int, body: dict) -> dict:
 def handle_delete(rule_id: int) -> dict:
     """Delete a categorization rule.
 
+    Note: Deleting a rule does NOT affect existing transactions.
+    Rules only control auto-categorization of new transactions.
+    Existing transactions retain their assigned categories.
+
     Args:
         rule_id: Rule ID
 
     Returns:
         Response with deletion result
     """
-    # Check if rule exists
-    existing = database.get_rule_by_id(rule_id)
-    if not existing:
+    deleted = database.delete_rule(rule_id)
+
+    if not deleted:
         return {
             'statusCode': 404,
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({'error': 'not_found', 'message': 'Rule not found'})
         }
 
-    # Delete rule (this also flags affected transactions for review)
-    affected_count = database.delete_rule(rule_id)
-
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json'},
-        'body': json.dumps({
-            'message': 'Rule deleted',
-            'affected_transactions': affected_count
-        })
+        'body': json.dumps({'message': 'Rule deleted'})
     }

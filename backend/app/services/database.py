@@ -426,43 +426,27 @@ def update_rule(rule_id: int, pattern: Optional[str] = None,
     return get_rule_by_id(rule_id)
 
 
-def delete_rule(rule_id: int) -> int:
-    """Delete a rule and flag affected transactions for review.
+def delete_rule(rule_id: int) -> bool:
+    """Delete a categorization rule.
+
+    Rules only affect auto-categorization of NEW transactions.
+    Deleting a rule does NOT affect existing transactions - they retain
+    their assigned categories.
 
     Args:
         rule_id: Rule ID to delete
 
     Returns:
-        Number of transactions flagged for review
+        True if rule was deleted, False if not found
     """
-    # Get the rule's category to find affected transactions
     rule = get_rule_by_id(rule_id)
     if not rule:
-        return 0
+        return False
 
-    affected_count = 0
+    with transaction():
+        execute("DELETE FROM categorize_rules WHERE id = ?", (rule_id,))
 
-    with transaction() as conn:
-        # Count transactions that will be affected
-        # (those categorized by this rule's pattern)
-        count_row = conn.execute(
-            """SELECT COUNT(*) as count FROM transactions
-               WHERE category_id = ? AND needs_review = 0""",
-            (rule['category_id'],)
-        ).fetchone()
-        affected_count = count_row['count'] if count_row else 0
-
-        # Flag transactions for review (those using this category that aren't already flagged)
-        conn.execute(
-            """UPDATE transactions SET needs_review = 1
-               WHERE category_id = ? AND needs_review = 0""",
-            (rule['category_id'],)
-        )
-
-        # Delete the rule
-        conn.execute("DELETE FROM categorize_rules WHERE id = ?", (rule_id,))
-
-    return affected_count
+    return True
 
 
 def get_unit(unit_number: str) -> Optional[dict]:
