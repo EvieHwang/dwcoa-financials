@@ -446,16 +446,8 @@ section h2 {
     flex: 1;
 }
 
-.reserve-summary-box:first-child {
-    text-align: left;
-}
-
-.reserve-summary-box:nth-child(2) {
+.reserve-summary-box {
     text-align: center;
-}
-
-.reserve-summary-box:last-child {
-    text-align: right;
 }
 
 .reserve-summary-box .summary-label {

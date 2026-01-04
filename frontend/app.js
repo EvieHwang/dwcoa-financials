@@ -395,6 +395,11 @@ function renderDashboard(data) {
     document.getElementById('balance-reserve').textContent = formatCurrency(findBalance('Reserve Fund'));
     document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
 
+    // Transaction Viewer account balances (duplicate for section header)
+    document.getElementById('txn-balance-checking').textContent = formatCurrency(findBalance('Checking'));
+    document.getElementById('txn-balance-savings').textContent = formatCurrency(findBalance('Savings'));
+    document.getElementById('txn-balance-reserve').textContent = formatCurrency(findBalance('Reserve Fund'));
+
     // Income & Dues summary
     // Use income_summary.ytd_budget (total operating budget) for the budget display
     // Don't sum individual unit shares as ownership percentages may not equal exactly 100%
@@ -441,8 +446,16 @@ function renderDashboard(data) {
     `).join('');
 
     // Find Reserve Contribution budget for Reserve Fund Activity section
-    const reserveContribution = expense.categories.find(cat => cat.category === 'Reserve Contribution');
+    // Check for 'Reserve Contribution' or 'Reserve Expenses' (category name may vary)
+    const reserveContribution = expense.categories.find(cat =>
+        cat.category === 'Reserve Contribution' || cat.category === 'Reserve Expenses'
+    );
     const reserveBudgetAmount = reserveContribution ? reserveContribution.ytd_budget : 0;
+
+    // Debug: log expense categories to help troubleshoot
+    console.log('Expense categories:', expense.categories.map(c => c.category));
+    console.log('Found reserve category:', reserveContribution);
+
     document.getElementById('reserve-budget').textContent = formatCurrency(reserveBudgetAmount);
     // Store for use in loadReserveTransactions
     window.reserveBudgetAmount = reserveBudgetAmount;
