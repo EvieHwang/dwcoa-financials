@@ -446,10 +446,11 @@ function renderDashboard(data) {
     `).join('');
 
     // Find Reserve Contribution budget for Reserve Fund Activity section
-    // Check for 'Reserve Contribution' or 'Reserve Expenses' (category name may vary)
-    const reserveContribution = expense.categories.find(cat =>
-        cat.category === 'Reserve Contribution' || cat.category === 'Reserve Expenses'
-    );
+    // Check for various possible category names (case-insensitive)
+    const reserveContribution = expense.categories.find(cat => {
+        const name = cat.category.toLowerCase();
+        return name === 'reserve fund' || name === 'reserve contribution' || name === 'reserve expenses';
+    });
     const reserveBudgetAmount = reserveContribution ? reserveContribution.ytd_budget : 0;
 
     // Debug: log expense categories to help troubleshoot
