@@ -562,12 +562,12 @@ async function loadReserveTransactions(asOfDate) {
         // Actual Net Change
         const prefix = netChange >= 0 ? '+' : '';
         reserveActualEl.textContent = `${prefix}${formatCurrency(netChange)}`;
-        reserveActualEl.className = netChange >= 0 ? 'positive' : 'negative';
+        reserveActualEl.className = `summary-value ${netChange >= 0 ? 'positive' : 'negative'}`;
 
         // Remaining (positive = under goal, negative = exceeded goal)
         reserveRemainingEl.textContent = formatCurrency(remaining);
         // Under goal (positive remaining) is negative/red, exceeded goal (negative remaining) is positive/green
-        reserveRemainingEl.className = remaining <= 0 ? 'positive' : 'negative';
+        reserveRemainingEl.className = `summary-value ${remaining <= 0 ? 'positive' : 'negative'}`;
 
         // Initialize or update Tabulator
         if (reserveTransactions.length === 0) {
