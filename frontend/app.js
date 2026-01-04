@@ -812,19 +812,25 @@ async function copyBudgets(fromYear, toYear) {
 }
 
 // Unit management functions
-async function loadUnits() {
+async function loadUnits(year) {
     try {
-        const response = await apiRequest('/units');
+        const response = await apiRequest(`/units?year=${year}`);
         const data = await response.json();
-        renderUnitsTable(data.units);
+        renderUnitsTable(data.units, year);
     } catch (e) {
         showBudgetStatus('Error loading units: ' + e.message, 'error');
     }
 }
 
-function renderUnitsTable(units) {
+function renderUnitsTable(units, year) {
     const tbody = document.getElementById('units-edit-body');
     if (!tbody) return;
+
+    // Update section title to show year
+    const titleEl = document.getElementById('units-section-title');
+    if (titleEl) {
+        titleEl.textContent = `Unit Past Due Balances (${year})`;
+    }
 
     tbody.innerHTML = units.map(unit => `
         <tr data-unit="${unit.number}">
@@ -850,7 +856,7 @@ function renderUnitsTable(units) {
             try {
                 const response = await apiRequest(`/units/${unitNumber}`, {
                     method: 'PATCH',
-                    body: JSON.stringify({ past_due_balance: pastDueBalance })
+                    body: JSON.stringify({ year: year, past_due_balance: pastDueBalance })
                 });
 
                 if (!response.ok) {
@@ -858,7 +864,7 @@ function renderUnitsTable(units) {
                     throw new Error(error.message || 'Failed to update unit');
                 }
 
-                showBudgetStatus(`Unit ${unitNumber} updated`, 'success');
+                showBudgetStatus(`Unit ${unitNumber} past due for ${year} updated`, 'success');
                 // Reload dashboard to reflect changes
                 await loadDashboard();
             } catch (e) {
@@ -1046,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         manageBudgetsBtn.addEventListener('click', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
-            await loadUnits();
+            await loadUnits(year);
             document.getElementById('budget-modal').classList.remove('hidden');
         });
 
@@ -1054,6 +1060,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         budgetYearEl.addEventListener('change', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
+            await loadUnits(year);
         });
     }
 

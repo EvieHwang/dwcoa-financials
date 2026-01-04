@@ -29,6 +29,9 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     # Get units
     units = database.get_units()
 
+    # Get year-specific past dues
+    past_dues = {pd['unit_number']: pd['past_due_balance'] for pd in database.get_unit_past_dues(year)}
+
     # Get dues budgets directly from the Dues categories (Income type)
     # These are the actual budgeted amounts, not derived from expenses
     dues_budget_sql = """
@@ -66,7 +69,7 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     total_ytd_budget = 0
     unit_status = []
     for unit in units:
-        past_due = unit.get('past_due_balance', 0) or 0
+        past_due = past_dues.get(unit['number'], 0)  # Year-specific past due
         ytd_budget = dues_budgets.get(unit['number'], 0)
         expected_ytd = past_due + ytd_budget  # Include past due in expected
         total_ytd_budget += expected_ytd

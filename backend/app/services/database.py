@@ -58,6 +58,18 @@ def run_migrations(conn: sqlite3.Connection) -> None:
     if 'past_due_balance' not in columns:
         conn.execute("ALTER TABLE units ADD COLUMN past_due_balance REAL NOT NULL DEFAULT 0")
 
+    # Create unit_past_dues table if it doesn't exist
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS unit_past_dues (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            unit_number TEXT NOT NULL,
+            year INTEGER NOT NULL,
+            past_due_balance REAL NOT NULL DEFAULT 0,
+            UNIQUE(unit_number, year),
+            FOREIGN KEY (unit_number) REFERENCES units(number)
+        )
+    """)
+
 
 def get_connection() -> sqlite3.Connection:
     """Get database connection, downloading from S3 if needed.
@@ -467,7 +479,7 @@ def get_unit(unit_number: str) -> Optional[dict]:
 
 
 def update_unit(unit_number: str, past_due_balance: float) -> Optional[dict]:
-    """Update a unit's past due balance.
+    """Update a unit's past due balance (deprecated - use update_unit_past_due).
 
     Args:
         unit_number: Unit number (e.g., '101')
@@ -488,3 +500,70 @@ def update_unit(unit_number: str, past_due_balance: float) -> Optional[dict]:
         )
 
     return get_unit(unit_number)
+
+
+def get_unit_past_dues(year: int) -> List[dict]:
+    """Get past due balances for all units for a specific year.
+
+    Args:
+        year: Budget year
+
+    Returns:
+        List of dicts with unit_number and past_due_balance
+    """
+    # Get all units with their year-specific past due (or 0 if not set)
+    sql = """
+        SELECT u.number as unit_number, COALESCE(upd.past_due_balance, 0) as past_due_balance
+        FROM units u
+        LEFT JOIN unit_past_dues upd ON u.number = upd.unit_number AND upd.year = ?
+        ORDER BY u.number
+    """
+    return rows_to_dicts(fetch_all(sql, (year,)))
+
+
+def get_unit_past_due(unit_number: str, year: int) -> float:
+    """Get past due balance for a specific unit and year.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+        year: Budget year
+
+    Returns:
+        Past due balance (0 if not set)
+    """
+    row = fetch_one(
+        "SELECT past_due_balance FROM unit_past_dues WHERE unit_number = ? AND year = ?",
+        (unit_number, year)
+    )
+    return row['past_due_balance'] if row else 0.0
+
+
+def update_unit_past_due(unit_number: str, year: int, past_due_balance: float) -> Optional[dict]:
+    """Update a unit's past due balance for a specific year.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+        year: Budget year
+        past_due_balance: New past due balance amount
+
+    Returns:
+        Dict with unit_number, year, past_due_balance or None if unit not found
+    """
+    # Verify unit exists
+    unit = get_unit(unit_number)
+    if not unit:
+        return None
+
+    with transaction():
+        execute(
+            """INSERT INTO unit_past_dues (unit_number, year, past_due_balance)
+               VALUES (?, ?, ?)
+               ON CONFLICT(unit_number, year) DO UPDATE SET past_due_balance = ?""",
+            (unit_number, year, past_due_balance, past_due_balance)
+        )
+
+    return {
+        'unit_number': unit_number,
+        'year': year,
+        'past_due_balance': past_due_balance
+    }

@@ -24,7 +24,17 @@ CREATE TABLE IF NOT EXISTS units (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     number TEXT NOT NULL UNIQUE,
     ownership_pct REAL NOT NULL CHECK (ownership_pct > 0 AND ownership_pct <= 1),
-    past_due_balance REAL NOT NULL DEFAULT 0
+    past_due_balance REAL NOT NULL DEFAULT 0  -- Deprecated: use unit_past_dues instead
+);
+
+-- Unit past dues table: Year-specific past due balances per unit
+CREATE TABLE IF NOT EXISTS unit_past_dues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_number TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    past_due_balance REAL NOT NULL DEFAULT 0,
+    UNIQUE(unit_number, year),
+    FOREIGN KEY (unit_number) REFERENCES units(number)
 );
 
 -- Budgets table: Annual budget amounts per category

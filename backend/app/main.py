@@ -215,7 +215,7 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
 
     # Units
     if path == '/api/units' and method == 'GET':
-        return units.handle_get_units()
+        return units.handle_get_units(query)
 
     if path.startswith('/api/units/') and method == 'PATCH':
         if not is_admin:
