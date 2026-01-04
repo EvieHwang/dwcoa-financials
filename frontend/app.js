@@ -440,6 +440,13 @@ function renderDashboard(data) {
         </tr>
     `).join('');
 
+    // Find Reserve Contribution budget for Reserve Fund Activity section
+    const reserveContribution = expense.categories.find(cat => cat.category === 'Reserve Contribution');
+    const reserveBudgetAmount = reserveContribution ? reserveContribution.ytd_budget : 0;
+    document.getElementById('reserve-budget').textContent = formatCurrency(reserveBudgetAmount);
+    // Store for use in loadReserveTransactions
+    window.reserveBudgetAmount = reserveBudgetAmount;
+
     // Review button - show count and gray out if zero
     const reviewBtn = document.getElementById('review-btn');
     if (reviewBtn) {
@@ -532,10 +539,21 @@ async function loadReserveTransactions(asOfDate) {
             return sum + (txn.credit || 0) - (txn.debit || 0);
         }, 0);
 
-        const netChangeEl = document.getElementById('reserve-net-change');
+        // Update Reserve Fund Activity summary
+        const reserveActualEl = document.getElementById('reserve-actual');
+        const reserveRemainingEl = document.getElementById('reserve-remaining');
+        const reserveBudget = window.reserveBudgetAmount || 0;
+        const remaining = reserveBudget - netChange;
+
+        // Actual Net Change
         const prefix = netChange >= 0 ? '+' : '';
-        netChangeEl.textContent = `${prefix}${formatCurrency(netChange)}`;
-        netChangeEl.className = `net-change ${netChange >= 0 ? 'positive' : 'negative'}`;
+        reserveActualEl.textContent = `${prefix}${formatCurrency(netChange)}`;
+        reserveActualEl.className = netChange >= 0 ? 'positive' : 'negative';
+
+        // Remaining (positive = under goal, negative = exceeded goal)
+        reserveRemainingEl.textContent = formatCurrency(remaining);
+        // Under goal (positive remaining) is negative/red, exceeded goal (negative remaining) is positive/green
+        reserveRemainingEl.className = remaining <= 0 ? 'positive' : 'negative';
 
         // Initialize or update Tabulator
         if (reserveTransactions.length === 0) {

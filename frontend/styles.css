@@ -425,11 +425,22 @@ section h2 {
     }
 }
 
-.income-summary, .expense-summary {
+.income-summary, .expense-summary, .reserve-summary {
     background: var(--bg-color);
     padding: 1rem;
     border-radius: 4px;
     width: 250px;
+}
+
+.reserve-grid {
+    margin-bottom: 1rem;
+}
+
+.section-note {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 1rem;
 }
 
 /* Compact tables for both sections */
