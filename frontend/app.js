@@ -610,7 +610,7 @@ async function loadReserveTransactions(asOfDate) {
                         }
                     },
                     {
-                        title: "In",
+                        title: "Credit",
                         field: "credit",
                         sorter: "number",
                         hozAlign: "right",
@@ -622,7 +622,7 @@ async function loadReserveTransactions(asOfDate) {
                         width: 110
                     },
                     {
-                        title: "Out",
+                        title: "Debit",
                         field: "debit",
                         sorter: "number",
                         hozAlign: "right",

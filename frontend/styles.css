@@ -482,11 +482,18 @@ section h2 {
     }
 }
 
+.expense-summary-column {
+    width: 250px;
+    flex-shrink: 0;
+}
+
 .section-note {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-style: italic;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
+    max-width: 250px;
+    line-height: 1.4;
 }
 
 /* Compact tables for both sections */
@@ -659,8 +666,15 @@ section h2 {
 }
 
 .upload-group {
-    flex-wrap: wrap;
-    justify-content: center;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    width: 100%;
+}
+
+.btn-admin.btn-fill {
+    flex: 1;
+    min-width: 0;
 }
 
 /* Buttons */
