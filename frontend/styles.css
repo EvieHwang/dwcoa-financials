@@ -294,7 +294,7 @@ section h2 {
 /* Account Balances */
 .accounts-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1.5fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1rem;
 }
@@ -324,24 +324,83 @@ section h2 {
     font-weight: 600;
 }
 
-.reserve-card {
-    text-align: center;
+/* Reserve Fund Activity Section */
+#reserve-section {
+    margin-top: 2rem;
 }
 
-.reserve-values {
+.reserve-summary {
     display: flex;
-    align-items: baseline;
-    justify-content: center;
-    gap: 1.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
 }
 
-.reserve-values .balance {
-    font-size: 1.25rem;
-}
-
-.reserve-values .ytd-change {
-    font-size: 1.25rem;
+.reserve-summary .net-change {
     font-weight: 600;
+    font-size: 1.25rem;
+}
+
+.reserve-summary .net-change.positive {
+    color: var(--success-color);
+}
+
+.reserve-summary .net-change.negative {
+    color: var(--danger-color);
+}
+
+#reserve-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+#reserve-table th,
+#reserve-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#reserve-table th {
+    background: var(--bg-color);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+#reserve-table th[data-sort]:hover {
+    background: var(--border-color);
+}
+
+#reserve-table td.amount {
+    text-align: right;
+    font-family: 'Monaco', 'Menlo', monospace;
+}
+
+#reserve-table .uncategorized {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+#reserve-table .empty-message {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.pagination .page-info {
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }
 
 .total-row {

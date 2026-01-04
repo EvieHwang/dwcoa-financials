@@ -317,6 +317,10 @@ async function loadDashboard(asOfDate = null) {
         const data = await response.json();
 
         renderDashboard(data);
+
+        // Load reserve fund activity
+        const snapshotDate = data.as_of_date || getTodayString();
+        await loadReserveTransactions(snapshotDate);
     } catch (e) {
         console.error('Failed to load dashboard:', e);
         alert('Failed to load dashboard: ' + e.message);
@@ -388,14 +392,6 @@ function renderDashboard(data) {
     document.getElementById('balance-checking').textContent = formatCurrency(findBalance('Checking'));
     document.getElementById('balance-savings').textContent = formatCurrency(findBalance('Savings'));
     document.getElementById('balance-reserve').textContent = formatCurrency(findBalance('Reserve Fund'));
-
-    // Reserve YTD change (net of contributions - expenses)
-    const reserve = data.reserve_fund || { net: 0 };
-    const ytdChangeEl = document.getElementById('reserve-ytd-change');
-    const ytdPrefix = reserve.net >= 0 ? '+' : '';
-    ytdChangeEl.textContent = `YTD: ${ytdPrefix}${formatCurrency(reserve.net)}`;
-    ytdChangeEl.className = `ytd-change ${reserve.net >= 0 ? 'positive' : 'negative'}`;
-
     document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
 
     // Income & Dues summary
@@ -508,6 +504,133 @@ async function downloadPDF() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// Reserve Fund Activity
+let reserveTransactions = [];
+let reservePage = 1;
+const reservePageSize = 25;
+let reserveSortColumn = 'date';
+let reserveSortAsc = false;
+
+async function loadReserveTransactions(asOfDate) {
+    try {
+        // Get year from date
+        const year = new Date(asOfDate + 'T00:00:00').getFullYear();
+
+        // Fetch reserve account transactions (account ****9226)
+        const response = await apiRequest(`/transactions?year=${year}&account=Reserve Fund&limit=500`);
+        const data = await response.json();
+
+        // Filter to only show transactions up to the selected date
+        reserveTransactions = data.transactions.filter(txn => txn.post_date <= asOfDate);
+
+        // Calculate net change
+        const netChange = reserveTransactions.reduce((sum, txn) => {
+            return sum + (txn.credit || 0) - (txn.debit || 0);
+        }, 0);
+
+        const netChangeEl = document.getElementById('reserve-net-change');
+        const prefix = netChange >= 0 ? '+' : '';
+        netChangeEl.textContent = `${prefix}${formatCurrency(netChange)}`;
+        netChangeEl.className = `net-change ${netChange >= 0 ? 'positive' : 'negative'}`;
+
+        // Reset to page 1 and render
+        reservePage = 1;
+        renderReserveTable();
+    } catch (e) {
+        console.error('Error loading reserve transactions:', e);
+    }
+}
+
+function renderReserveTable() {
+    const tbody = document.getElementById('reserve-body');
+    const pagination = document.getElementById('reserve-pagination');
+
+    if (reserveTransactions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-message">No reserve fund activity for this period.</td></tr>';
+        pagination.innerHTML = '';
+        return;
+    }
+
+    // Sort transactions
+    const sorted = [...reserveTransactions].sort((a, b) => {
+        let aVal, bVal;
+        switch (reserveSortColumn) {
+            case 'date':
+                aVal = a.post_date;
+                bVal = b.post_date;
+                break;
+            case 'description':
+                aVal = a.description.toLowerCase();
+                bVal = b.description.toLowerCase();
+                break;
+            case 'in':
+                aVal = a.credit || 0;
+                bVal = b.credit || 0;
+                break;
+            case 'out':
+                aVal = a.debit || 0;
+                bVal = b.debit || 0;
+                break;
+            case 'category':
+                aVal = (a.category || '').toLowerCase();
+                bVal = (b.category || '').toLowerCase();
+                break;
+            default:
+                aVal = a.post_date;
+                bVal = b.post_date;
+        }
+        if (aVal < bVal) return reserveSortAsc ? -1 : 1;
+        if (aVal > bVal) return reserveSortAsc ? 1 : -1;
+        return 0;
+    });
+
+    // Paginate
+    const totalPages = Math.ceil(sorted.length / reservePageSize);
+    const start = (reservePage - 1) * reservePageSize;
+    const pageData = sorted.slice(start, start + reservePageSize);
+
+    // Render rows
+    tbody.innerHTML = pageData.map(txn => `
+        <tr>
+            <td>${txn.post_date}</td>
+            <td>${escapeHtml(txn.description)}</td>
+            <td class="amount">${txn.credit ? formatCurrency(txn.credit) : ''}</td>
+            <td class="amount">${txn.debit ? formatCurrency(txn.debit) : ''}</td>
+            <td>${txn.category || '<span class="uncategorized">Uncategorized</span>'}</td>
+        </tr>
+    `).join('');
+
+    // Render pagination
+    if (totalPages > 1) {
+        let paginationHtml = '';
+        if (reservePage > 1) {
+            paginationHtml += `<button class="btn-small" onclick="goReservePage(${reservePage - 1})">Prev</button>`;
+        }
+        paginationHtml += `<span class="page-info">Page ${reservePage} of ${totalPages}</span>`;
+        if (reservePage < totalPages) {
+            paginationHtml += `<button class="btn-small" onclick="goReservePage(${reservePage + 1})">Next</button>`;
+        }
+        pagination.innerHTML = paginationHtml;
+    } else {
+        pagination.innerHTML = '';
+    }
+}
+
+function goReservePage(page) {
+    reservePage = page;
+    renderReserveTable();
+}
+
+function sortReserveTable(column) {
+    if (reserveSortColumn === column) {
+        reserveSortAsc = !reserveSortAsc;
+    } else {
+        reserveSortColumn = column;
+        reserveSortAsc = true;
+    }
+    renderReserveTable();
 }
 
 // Review functions
@@ -931,6 +1054,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadDashboard(snapshotDateEl.value);
         });
     }
+
+    // Reserve table sorting
+    document.querySelectorAll('#reserve-table th[data-sort]').forEach(th => {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+            sortReserveTable(th.dataset.sort);
+        });
+    });
 
     // Reset to Today button
     if (resetTodayBtn) {

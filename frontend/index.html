@@ -68,12 +68,9 @@
                         <div class="name">Savings</div>
                         <div class="balance" id="balance-savings">$0.00</div>
                     </div>
-                    <div class="account-card reserve-card">
+                    <div class="account-card">
                         <div class="name">Reserve Fund</div>
-                        <div class="reserve-values">
-                            <span class="balance" id="balance-reserve">$0.00</span>
-                            <span class="ytd-change" id="reserve-ytd-change">YTD: +$0.00</span>
-                        </div>
+                        <div class="balance" id="balance-reserve">$0.00</div>
                     </div>
                 </div>
                 <div class="total-row">
@@ -161,6 +158,28 @@
                         <tbody></tbody>
                     </table>
                 </div>
+            </section>
+
+            <!-- Reserve Fund Activity -->
+            <section id="reserve-section">
+                <h2>Reserve Fund Activity</h2>
+                <div class="reserve-summary">
+                    <span>Net Change:</span>
+                    <span id="reserve-net-change" class="net-change">$0.00</span>
+                </div>
+                <table id="reserve-table" class="data-table sortable">
+                    <thead>
+                        <tr>
+                            <th data-sort="date">Date</th>
+                            <th data-sort="description">Description</th>
+                            <th data-sort="in">In</th>
+                            <th data-sort="out">Out</th>
+                            <th data-sort="category">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reserve-body"></tbody>
+                </table>
+                <div class="pagination" id="reserve-pagination"></div>
             </section>
 
             <!-- Admin Controls -->
