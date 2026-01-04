@@ -509,14 +509,13 @@ async function downloadPDF() {
     window.URL.revokeObjectURL(url);
 }
 
-// Reserve Fund Activity
-let reserveTransactions = [];
-let reservePage = 1;
-const reservePageSize = 25;
-let reserveSortColumn = 'date';
-let reserveSortAsc = false;
+// Reserve Fund Activity - using Tabulator like Transaction History
+let reserveTable = null;
 
 async function loadReserveTransactions(asOfDate) {
+    const tableEl = document.getElementById('reserve-table');
+    if (!tableEl) return;
+
     try {
         // Get year from date
         const year = new Date(asOfDate + 'T00:00:00').getFullYear();
@@ -526,7 +525,7 @@ async function loadReserveTransactions(asOfDate) {
         const data = await response.json();
 
         // Filter to only show transactions up to the selected date
-        reserveTransactions = data.transactions.filter(txn => txn.post_date <= asOfDate);
+        const reserveTransactions = data.transactions.filter(txn => txn.post_date <= asOfDate);
 
         // Calculate net change
         const netChange = reserveTransactions.reduce((sum, txn) => {
@@ -538,102 +537,91 @@ async function loadReserveTransactions(asOfDate) {
         netChangeEl.textContent = `${prefix}${formatCurrency(netChange)}`;
         netChangeEl.className = `net-change ${netChange >= 0 ? 'positive' : 'negative'}`;
 
-        // Reset to page 1 and render
-        reservePage = 1;
-        renderReserveTable();
+        // Initialize or update Tabulator
+        if (reserveTransactions.length === 0) {
+            tableEl.innerHTML = '<p style="padding: 1rem; color: #666;">No reserve fund activity for this period.</p>';
+            if (reserveTable) {
+                reserveTable.destroy();
+                reserveTable = null;
+            }
+            return;
+        }
+
+        if (reserveTable) {
+            // Update existing table data
+            reserveTable.setData(reserveTransactions);
+        } else {
+            // Create new Tabulator table
+            reserveTable = new Tabulator("#reserve-table", {
+                data: reserveTransactions,
+                layout: "fitColumns",
+                responsiveLayout: "collapse",
+                pagination: true,
+                paginationSize: 25,
+                paginationSizeSelector: [25, 50, 100],
+                initialSort: [{ column: "post_date", dir: "desc" }],
+                placeholder: "No reserve fund activity",
+                columns: [
+                    {
+                        title: "Post Date",
+                        field: "post_date",
+                        sorter: function(a, b) {
+                            return a.localeCompare(b);
+                        },
+                        headerFilter: "input",
+                        width: 120
+                    },
+                    {
+                        title: "Category",
+                        field: "category",
+                        sorter: "string",
+                        headerFilter: "input",
+                        formatter: function(cell) {
+                            const val = cell.getValue();
+                            if (!val) return '<span class="uncategorized">Uncategorized</span>';
+                            return escapeHtml(val);
+                        }
+                    },
+                    {
+                        title: "Description",
+                        field: "description",
+                        sorter: "string",
+                        headerFilter: "input",
+                        formatter: function(cell) {
+                            return escapeHtml(cell.getValue() || '');
+                        }
+                    },
+                    {
+                        title: "In",
+                        field: "credit",
+                        sorter: "number",
+                        hozAlign: "right",
+                        formatter: function(cell) {
+                            const val = cell.getValue();
+                            if (val === null || val === undefined || val === '' || val === 0) return '';
+                            return formatCurrency(val);
+                        },
+                        width: 110
+                    },
+                    {
+                        title: "Out",
+                        field: "debit",
+                        sorter: "number",
+                        hozAlign: "right",
+                        formatter: function(cell) {
+                            const val = cell.getValue();
+                            if (val === null || val === undefined || val === '' || val === 0) return '';
+                            return formatCurrency(val);
+                        },
+                        width: 110
+                    }
+                ]
+            });
+        }
     } catch (e) {
         console.error('Error loading reserve transactions:', e);
+        tableEl.innerHTML = '<p style="padding: 1rem; color: #dc2626;">Error loading reserve fund activity.</p>';
     }
-}
-
-function renderReserveTable() {
-    const tbody = document.getElementById('reserve-body');
-    const pagination = document.getElementById('reserve-pagination');
-
-    if (reserveTransactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-message">No reserve fund activity for this period.</td></tr>';
-        pagination.innerHTML = '';
-        return;
-    }
-
-    // Sort transactions
-    const sorted = [...reserveTransactions].sort((a, b) => {
-        let aVal, bVal;
-        switch (reserveSortColumn) {
-            case 'date':
-                aVal = a.post_date;
-                bVal = b.post_date;
-                break;
-            case 'description':
-                aVal = a.description.toLowerCase();
-                bVal = b.description.toLowerCase();
-                break;
-            case 'in':
-                aVal = a.credit || 0;
-                bVal = b.credit || 0;
-                break;
-            case 'out':
-                aVal = a.debit || 0;
-                bVal = b.debit || 0;
-                break;
-            case 'category':
-                aVal = (a.category || '').toLowerCase();
-                bVal = (b.category || '').toLowerCase();
-                break;
-            default:
-                aVal = a.post_date;
-                bVal = b.post_date;
-        }
-        if (aVal < bVal) return reserveSortAsc ? -1 : 1;
-        if (aVal > bVal) return reserveSortAsc ? 1 : -1;
-        return 0;
-    });
-
-    // Paginate
-    const totalPages = Math.ceil(sorted.length / reservePageSize);
-    const start = (reservePage - 1) * reservePageSize;
-    const pageData = sorted.slice(start, start + reservePageSize);
-
-    // Render rows
-    tbody.innerHTML = pageData.map(txn => `
-        <tr>
-            <td>${txn.post_date}</td>
-            <td>${escapeHtml(txn.description)}</td>
-            <td class="amount">${txn.credit ? formatCurrency(txn.credit) : ''}</td>
-            <td class="amount">${txn.debit ? formatCurrency(txn.debit) : ''}</td>
-            <td>${txn.category || '<span class="uncategorized">Uncategorized</span>'}</td>
-        </tr>
-    `).join('');
-
-    // Render pagination
-    if (totalPages > 1) {
-        let paginationHtml = '';
-        if (reservePage > 1) {
-            paginationHtml += `<button class="btn-small" onclick="goReservePage(${reservePage - 1})">Prev</button>`;
-        }
-        paginationHtml += `<span class="page-info">Page ${reservePage} of ${totalPages}</span>`;
-        if (reservePage < totalPages) {
-            paginationHtml += `<button class="btn-small" onclick="goReservePage(${reservePage + 1})">Next</button>`;
-        }
-        pagination.innerHTML = paginationHtml;
-    } else {
-        pagination.innerHTML = '';
-    }
-}
-
-function goReservePage(page) {
-    reservePage = page;
-    renderReserveTable();
-}
-
-function sortReserveTable(column) {
-    if (reserveSortColumn === column) {
-        reserveSortAsc = !reserveSortAsc;
-    } else {
-        reserveSortColumn = column;
-        reserveSortAsc = true;
-    }
-    renderReserveTable();
 }
 
 // Review functions
@@ -1131,14 +1119,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadDashboard(snapshotDateEl.value);
         });
     }
-
-    // Reserve table sorting
-    document.querySelectorAll('#reserve-table th[data-sort]').forEach(th => {
-        th.style.cursor = 'pointer';
-        th.addEventListener('click', () => {
-            sortReserveTable(th.dataset.sort);
-        });
-    });
 
     // Reset to Today button
     if (resetTodayBtn) {
