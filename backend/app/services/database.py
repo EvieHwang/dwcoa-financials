@@ -70,6 +70,26 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         )
     """)
 
+    # Create budget_locks table if it doesn't exist
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS budget_locks (
+            year INTEGER PRIMARY KEY,
+            locked INTEGER NOT NULL DEFAULT 0,
+            locked_at TEXT,
+            locked_by TEXT
+        )
+    """)
+
+    # Change Reserve Contribution from Transfer to Expense (for calculated dues)
+    conn.execute("UPDATE categories SET type = 'Expense' WHERE name = 'Reserve Contribution'")
+
+    # Delete Dues budget entries for 2025+ (categories remain for transactions)
+    conn.execute("""
+        DELETE FROM budgets WHERE category_id IN (
+            SELECT id FROM categories WHERE name LIKE 'Dues %'
+        ) AND year >= 2025
+    """)
+
 
 def get_connection() -> sqlite3.Connection:
     """Get database connection, downloading from S3 if needed.
@@ -551,3 +571,49 @@ def update_unit_past_due(unit_number: str, year: int, past_due_balance: float) -
         'year': year,
         'past_due_balance': past_due_balance
     }
+
+
+def is_budget_locked(year: int) -> bool:
+    """Check if a budget year is locked.
+
+    Args:
+        year: Budget year
+
+    Returns:
+        True if budget is locked
+    """
+    row = fetch_one("SELECT locked FROM budget_locks WHERE year = ?", (year,))
+    return row['locked'] == 1 if row else False
+
+
+def get_budget_lock(year: int) -> Optional[dict]:
+    """Get budget lock status for a year.
+
+    Args:
+        year: Budget year
+
+    Returns:
+        Dict with year, locked, locked_at or None if not set
+    """
+    row = fetch_one("SELECT * FROM budget_locks WHERE year = ?", (year,))
+    return row_to_dict(row) if row else {'year': year, 'locked': False, 'locked_at': None}
+
+
+def set_budget_lock(year: int, locked: bool) -> dict:
+    """Lock or unlock a budget year.
+
+    Args:
+        year: Budget year
+        locked: Whether to lock or unlock
+
+    Returns:
+        Dict with year, locked, locked_at
+    """
+    with transaction():
+        execute("""
+            INSERT INTO budget_locks (year, locked, locked_at)
+            VALUES (?, ?, datetime('now'))
+            ON CONFLICT(year) DO UPDATE SET locked = ?, locked_at = datetime('now')
+        """, (year, 1 if locked else 0, 1 if locked else 0))
+
+    return get_budget_lock(year)

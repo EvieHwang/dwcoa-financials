@@ -792,17 +792,45 @@ function renderReviewQueue(transactions) {
 }
 
 // Budget management functions
+const CALCULATED_DUES_START_YEAR = 2025;  // Cutoff year for calculated dues
+let currentBudgetLocked = false;
+
 async function loadBudgets(year) {
     try {
         const response = await apiRequest(`/budgets?year=${year}`);
         const data = await response.json();
-        renderBudgetTable(data.budgets, year);
+
+        // Store lock status
+        currentBudgetLocked = data.locked || false;
+
+        // Update lock checkbox
+        const lockCheckbox = document.getElementById('budget-locked');
+        if (lockCheckbox) {
+            lockCheckbox.checked = currentBudgetLocked;
+        }
+
+        // Show lock indicator
+        const lockIndicator = document.getElementById('budget-lock-indicator');
+        if (lockIndicator) {
+            if (currentBudgetLocked) {
+                lockIndicator.classList.remove('hidden');
+                if (data.locked_at) {
+                    lockIndicator.textContent = `Budget locked on ${formatDate(data.locked_at)}`;
+                } else {
+                    lockIndicator.textContent = 'Budget is locked';
+                }
+            } else {
+                lockIndicator.classList.add('hidden');
+            }
+        }
+
+        renderBudgetTable(data.budgets, year, currentBudgetLocked);
     } catch (e) {
         showBudgetStatus('Error loading budgets: ' + e.message, 'error');
     }
 }
 
-function renderBudgetTable(budgets, year) {
+function renderBudgetTable(budgets, year, isLocked = false) {
     const tbody = document.getElementById('budget-edit-body');
 
     if (!budgets || budgets.length === 0) {
@@ -810,27 +838,38 @@ function renderBudgetTable(budgets, year) {
         return;
     }
 
-    tbody.innerHTML = budgets.map(b => `
+    // Filter out Dues categories for 2025+ (they're calculated from operating budget)
+    let filteredBudgets = budgets;
+    if (year >= CALCULATED_DUES_START_YEAR) {
+        filteredBudgets = budgets.filter(b => !b.category_name.startsWith('Dues '));
+    }
+
+    if (filteredBudgets.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5">No budgets found for ${year}. Copy from a previous year or add categories.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filteredBudgets.map(b => `
         <tr data-category-id="${b.category_id}" data-year="${year}" data-txn-count="${b.transaction_count || 0}">
             <td>
-                <input type="text" class="name-input" value="${b.category_name}" placeholder="Category name">
+                <input type="text" class="name-input" value="${b.category_name}" placeholder="Category name" ${isLocked ? 'disabled' : ''}>
             </td>
             <td>
                 <span class="type-text">${b.category_type}</span>
             </td>
             <td>
-                <select class="timing-select">
+                <select class="timing-select" ${isLocked ? 'disabled' : ''}>
                     <option value="monthly" ${b.effective_timing === 'monthly' ? 'selected' : ''}>Monthly</option>
                     <option value="quarterly" ${b.effective_timing === 'quarterly' ? 'selected' : ''}>Quarterly</option>
                     <option value="annual" ${b.effective_timing === 'annual' ? 'selected' : ''}>Annual</option>
                 </select>
             </td>
             <td>
-                <input type="number" class="amount-input" value="${b.annual_amount || 0}" step="0.01" min="0">
+                <input type="number" class="amount-input" value="${b.annual_amount || 0}" step="0.01" min="0" ${isLocked ? 'disabled' : ''}>
             </td>
             <td class="action-buttons">
-                <button class="btn-primary save-budget-btn">Save</button>
-                <button class="btn-secondary retire-btn">Retire</button>
+                ${isLocked ? '' : '<button class="btn-primary save-budget-btn">Save</button>'}
+                ${isLocked ? '' : '<button class="btn-secondary retire-btn">Retire</button>'}
             </td>
         </tr>
     `).join('');
@@ -1006,6 +1045,41 @@ function showBudgetStatus(message, type) {
     setTimeout(() => {
         statusEl.classList.add('hidden');
     }, 3000);
+}
+
+async function toggleBudgetLock(year, locked) {
+    // Confirm unlock
+    if (!locked) {
+        if (!confirm('Unlocking allows budget changes. Are you sure?')) {
+            // Restore checkbox state
+            const lockCheckbox = document.getElementById('budget-locked');
+            if (lockCheckbox) lockCheckbox.checked = true;
+            return;
+        }
+    }
+
+    try {
+        const response = await apiRequest(`/budgets/lock/${year}`, {
+            method: 'POST',
+            body: JSON.stringify({ locked })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Failed to update lock status');
+        }
+
+        showBudgetStatus(locked ? 'Budget locked' : 'Budget unlocked', 'success');
+
+        // Refresh UI
+        await loadBudgets(year);
+        await loadUnits(year);
+    } catch (e) {
+        showBudgetStatus('Error: ' + e.message, 'error');
+        // Restore checkbox state
+        const lockCheckbox = document.getElementById('budget-locked');
+        if (lockCheckbox) lockCheckbox.checked = !locked;
+    }
 }
 
 // Event handlers
@@ -1191,6 +1265,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
             await loadUnits(year);
+        });
+    }
+
+    // Budget lock toggle
+    const budgetLockedCheckbox = document.getElementById('budget-locked');
+    if (budgetLockedCheckbox) {
+        budgetLockedCheckbox.addEventListener('change', async (e) => {
+            const year = parseInt(budgetYearEl.value);
+            await toggleBudgetLock(year, e.target.checked);
         });
     }
 

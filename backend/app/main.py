@@ -178,6 +178,12 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
             return error_response(403, 'forbidden', 'Admin access required')
         return budgets.handle_copy(body)
 
+    if path.startswith('/api/budgets/lock/') and method == 'POST':
+        if not is_admin:
+            return error_response(403, 'forbidden', 'Admin access required')
+        year = int(path.split('/')[-1])
+        return budgets.handle_lock(year, body)
+
     # Dues
     if path == '/api/dues' and method == 'GET':
         year = int(query.get('year', 0)) or None

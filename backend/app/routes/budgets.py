@@ -13,7 +13,7 @@ def handle_list(year: int) -> dict:
         year: Budget year
 
     Returns:
-        Response with budget list including transaction counts
+        Response with budget list including transaction counts and lock status
     """
     budgets = database.get_budgets(year)
 
@@ -25,11 +25,16 @@ def handle_list(year: int) -> dict:
         )
         budget['transaction_count'] = count_row['count'] if count_row else 0
 
+    # Get lock status for this year
+    lock_info = database.get_budget_lock(year)
+
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json'},
         'body': json.dumps({
             'year': year,
+            'locked': lock_info.get('locked', False) if lock_info else False,
+            'locked_at': lock_info.get('locked_at') if lock_info else None,
             'budgets': budgets
         })
     }
@@ -57,6 +62,14 @@ def handle_upsert(body: dict) -> dict:
     category_id = int(body['category_id'])
     annual_amount = float(body['annual_amount'])
     timing = body.get('timing')  # Optional override
+
+    # Check if budget is locked
+    if database.is_budget_locked(year):
+        return {
+            'statusCode': 403,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': 'locked', 'message': 'Budget is locked for this year'})
+        }
 
     # Verify category exists
     category = database.get_category_by_id(category_id)
@@ -122,6 +135,14 @@ def handle_copy(body: dict) -> dict:
             'body': json.dumps({'error': 'bad_request', 'message': 'from_year and to_year must be different'})
         }
 
+    # Check if target year is locked
+    if database.is_budget_locked(to_year):
+        return {
+            'statusCode': 403,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps({'error': 'locked', 'message': f'Budget is locked for {to_year}'})
+        }
+
     # Check source budgets exist
     source_budgets = database.get_budgets(from_year)
     if not source_budgets:
@@ -153,5 +174,30 @@ def handle_copy(body: dict) -> dict:
         'body': json.dumps({
             'message': f'Copied {count} budgets from {from_year} to {to_year}',
             'count': count
+        })
+    }
+
+
+def handle_lock(year: int, body: dict) -> dict:
+    """Lock or unlock a budget year.
+
+    Args:
+        year: Budget year
+        body: Request body with 'locked' boolean
+
+    Returns:
+        Response with lock status
+    """
+    locked = body.get('locked', True)
+
+    lock_info = database.set_budget_lock(year, locked)
+
+    return {
+        'statusCode': 200,
+        'headers': {'Content-Type': 'application/json'},
+        'body': json.dumps({
+            'year': year,
+            'locked': lock_info.get('locked', False),
+            'locked_at': lock_info.get('locked_at')
         })
     }

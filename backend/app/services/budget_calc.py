@@ -6,6 +6,10 @@ from typing import Dict, List, Optional, Tuple
 
 from app.services import database
 
+# Cutoff year: 2025+ uses calculated dues from operating budget
+# Years before this use legacy per-unit budget entries
+CALCULATED_DUES_START_YEAR = 2025
+
 
 def calculate_ytd_budget(annual_amount: float, timing: str, as_of_date: date) -> float:
     """Calculate YTD budget based on timing pattern.
@@ -36,6 +40,52 @@ def calculate_ytd_budget(annual_amount: float, timing: str, as_of_date: date) ->
 
     # Default to annual
     return annual_amount
+
+
+def get_total_operating_budget(year: int, as_of_date: date) -> float:
+    """Calculate total operating budget including Reserve Contribution.
+
+    This is the sum of all Expense category budgets, prorated to YTD.
+    Used for calculating unit dues in 2025+.
+
+    Args:
+        year: Budget year
+        as_of_date: Date to calculate YTD amount
+
+    Returns:
+        YTD total operating budget
+    """
+    sql = """
+        SELECT b.annual_amount, COALESCE(b.timing, c.timing) as timing
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        WHERE b.year = ? AND c.type = 'Expense' AND c.active = 1
+    """
+    rows = database.fetch_all(sql, (year,))
+
+    total = 0.0
+    for row in rows:
+        total += calculate_ytd_budget(row['annual_amount'], row['timing'], as_of_date)
+    return total
+
+
+def get_total_annual_operating_budget(year: int) -> float:
+    """Get total annual operating budget (not YTD prorated).
+
+    Args:
+        year: Budget year
+
+    Returns:
+        Total annual operating budget
+    """
+    sql = """
+        SELECT COALESCE(SUM(b.annual_amount), 0) as total
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        WHERE b.year = ? AND c.type = 'Expense' AND c.active = 1
+    """
+    row = database.fetch_one(sql, (year,))
+    return row['total'] if row else 0.0
 
 
 def get_ytd_actuals(year: int, as_of_date: Optional[date] = None) -> Dict[int, float]:
@@ -81,6 +131,9 @@ def get_ytd_actuals(year: int, as_of_date: Optional[date] = None) -> Dict[int, f
 def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     """Get complete budget summary for dashboard.
 
+    For 2025+, income budget is calculated from total operating budget
+    (what we need to collect from dues) plus Interest Income budget.
+
     Args:
         year: Budget year
         as_of_date: Date to calculate YTD (defaults to today)
@@ -108,11 +161,15 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     expense_ytd_budget = 0
     expense_ytd_actual = 0
 
+    # Track Interest Income separately for calculated income
+    interest_ytd_budget = 0
+
     for budget in budgets:
         cat_type = budget['category_type']
         timing = budget.get('effective_timing', 'monthly')
         annual = budget['annual_amount'] or 0
         category_id = budget['category_id']
+        category_name = budget['category_name']
 
         ytd_budget = calculate_ytd_budget(annual, timing, as_of_date)
         ytd_actual = actuals.get(category_id, 0)
@@ -124,7 +181,7 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
 
         cat_data = {
             'id': category_id,
-            'category': budget['category_name'],
+            'category': category_name,
             'type': cat_type,
             'timing': timing,
             'annual_amount': annual,
@@ -135,12 +192,26 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
 
         if cat_type == 'Income':
             income_categories.append(cat_data)
-            income_ytd_budget += ytd_budget
             income_ytd_actual += ytd_actual
+            # Track Interest Income for calculated budget
+            if category_name == 'Interest income':
+                interest_ytd_budget = ytd_budget
+            # For 2025+, we calculate dues from operating budget, not from category budgets
+            if year < CALCULATED_DUES_START_YEAR:
+                income_ytd_budget += ytd_budget
         elif cat_type == 'Expense':
             expense_categories.append(cat_data)
             expense_ytd_budget += ytd_budget
             expense_ytd_actual += ytd_actual
+
+    # For 2025+, income budget is calculated from operating expenses + interest
+    calculated_income = False
+    total_operating_budget_ytd = None
+    if year >= CALCULATED_DUES_START_YEAR:
+        calculated_income = True
+        total_operating_budget_ytd = get_total_operating_budget(year, as_of_date)
+        # Total dues budget = total operating budget (units collectively pay 100%)
+        income_ytd_budget = total_operating_budget_ytd + interest_ytd_budget
 
     return {
         'year': year,
@@ -148,6 +219,8 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
         'income_summary': {
             'ytd_budget': round(income_ytd_budget, 2),
             'ytd_actual': round(income_ytd_actual, 2),
+            'calculated': calculated_income,
+            'total_operating_budget': round(total_operating_budget_ytd, 2) if total_operating_budget_ytd else None,
             'categories': income_categories
         },
         'expense_summary': {

@@ -786,6 +786,30 @@ footer a:hover {
     font-size: 0.875rem;
 }
 
+.lock-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 1rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.lock-checkbox input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.budget-locked-indicator {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    border: 1px solid #fcd34d;
+}
+
 .amount-input {
     width: 120px;
     padding: 0.5rem;

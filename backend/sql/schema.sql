@@ -47,6 +47,14 @@ CREATE TABLE IF NOT EXISTS budgets (
     UNIQUE(year, category_id)
 );
 
+-- Budget locks table: Track locked budget years
+CREATE TABLE IF NOT EXISTS budget_locks (
+    year INTEGER PRIMARY KEY,
+    locked INTEGER NOT NULL DEFAULT 0,
+    locked_at TEXT,
+    locked_by TEXT
+);
+
 -- Transactions table: All financial transactions
 CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

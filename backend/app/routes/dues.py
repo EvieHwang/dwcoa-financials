@@ -5,12 +5,14 @@ from datetime import date
 from typing import Optional
 
 from app.services import database, budget_calc
+from app.services.budget_calc import CALCULATED_DUES_START_YEAR
 
 
 def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = None) -> dict:
     """Calculate dues status for all units as of a specific date.
 
-    Uses the actual Dues category budgets (not derived from expense budgets).
+    For 2025+: Dues are calculated from Total Operating Budget × Ownership %
+    For < 2025: Uses legacy per-unit Dues category budgets
 
     Args:
         year: Budget year (defaults to current year)
@@ -32,23 +34,6 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
     # Get year-specific past dues
     past_dues = {pd['unit_number']: pd['past_due_balance'] for pd in database.get_unit_past_dues(year)}
 
-    # Get dues budgets directly from the Dues categories (Income type)
-    # These are the actual budgeted amounts, not derived from expenses
-    dues_budget_sql = """
-        SELECT c.name as category, b.annual_amount, COALESCE(b.timing, c.timing) as timing
-        FROM budgets b
-        JOIN categories c ON b.category_id = c.id
-        WHERE b.year = ? AND c.name LIKE 'Dues %'
-    """
-    budget_rows = database.fetch_all(dues_budget_sql, (year,))
-    dues_budgets = {}
-    for row in budget_rows:
-        unit_num = row['category'].replace('Dues ', '')
-        annual = row['annual_amount'] or 0
-        timing = row['timing'] or 'monthly'
-        ytd_budget = budget_calc.calculate_ytd_budget(annual, timing, as_of_date)
-        dues_budgets[unit_num] = ytd_budget
-
     # Get dues payments by unit through as_of_date
     dues_sql = """
         SELECT c.name as category, SUM(t.credit) as paid
@@ -67,28 +52,71 @@ def get_dues_status(year: Optional[int] = None, as_of_date: Optional[date] = Non
 
     # Calculate status for each unit
     total_ytd_budget = 0
+    total_operating_budget_ytd = None
     unit_status = []
-    for unit in units:
-        past_due = past_dues.get(unit['number'], 0)  # Year-specific past due
-        ytd_budget = dues_budgets.get(unit['number'], 0)
-        expected_ytd = past_due + ytd_budget  # Include past due in expected
-        total_ytd_budget += expected_ytd
-        paid = dues_by_unit.get(unit['number'], 0)
-        outstanding = expected_ytd - paid
 
-        unit_status.append({
-            'unit': unit['number'],
-            'ownership_pct': unit['ownership_pct'],
-            'past_due_balance': round(past_due, 2),
-            'ytd_budget': round(ytd_budget, 2),
-            'expected_ytd': round(expected_ytd, 2),
-            'paid_ytd': round(paid, 2),
-            'outstanding': round(outstanding, 2)
-        })
+    if year >= CALCULATED_DUES_START_YEAR:
+        # NEW: Calculate dues from total operating budget
+        total_operating_budget_ytd = budget_calc.get_total_operating_budget(year, as_of_date)
+
+        for unit in units:
+            past_due = past_dues.get(unit['number'], 0)
+            # Unit's share = Total Operating Budget × Ownership %
+            ytd_budget = total_operating_budget_ytd * unit['ownership_pct']
+            expected_ytd = past_due + ytd_budget
+            total_ytd_budget += expected_ytd
+            paid = dues_by_unit.get(unit['number'], 0)
+            outstanding = expected_ytd - paid
+
+            unit_status.append({
+                'unit': unit['number'],
+                'ownership_pct': unit['ownership_pct'],
+                'past_due_balance': round(past_due, 2),
+                'ytd_budget': round(ytd_budget, 2),
+                'expected_ytd': round(expected_ytd, 2),
+                'paid_ytd': round(paid, 2),
+                'outstanding': round(outstanding, 2)
+            })
+    else:
+        # LEGACY: Use per-unit Dues category budgets
+        dues_budget_sql = """
+            SELECT c.name as category, b.annual_amount, COALESCE(b.timing, c.timing) as timing
+            FROM budgets b
+            JOIN categories c ON b.category_id = c.id
+            WHERE b.year = ? AND c.name LIKE 'Dues %'
+        """
+        budget_rows = database.fetch_all(dues_budget_sql, (year,))
+        dues_budgets = {}
+        for row in budget_rows:
+            unit_num = row['category'].replace('Dues ', '')
+            annual = row['annual_amount'] or 0
+            timing = row['timing'] or 'monthly'
+            ytd_budget = budget_calc.calculate_ytd_budget(annual, timing, as_of_date)
+            dues_budgets[unit_num] = ytd_budget
+
+        for unit in units:
+            past_due = past_dues.get(unit['number'], 0)
+            ytd_budget = dues_budgets.get(unit['number'], 0)
+            expected_ytd = past_due + ytd_budget
+            total_ytd_budget += expected_ytd
+            paid = dues_by_unit.get(unit['number'], 0)
+            outstanding = expected_ytd - paid
+
+            unit_status.append({
+                'unit': unit['number'],
+                'ownership_pct': unit['ownership_pct'],
+                'past_due_balance': round(past_due, 2),
+                'ytd_budget': round(ytd_budget, 2),
+                'expected_ytd': round(expected_ytd, 2),
+                'paid_ytd': round(paid, 2),
+                'outstanding': round(outstanding, 2)
+            })
 
     return {
         'year': year,
         'total_ytd_budget': round(total_ytd_budget, 2),
+        'total_operating_budget': round(total_operating_budget_ytd, 2) if total_operating_budget_ytd else None,
+        'calculated': year >= CALCULATED_DUES_START_YEAR,
         'units': unit_status
     }
 
