@@ -64,7 +64,8 @@ function renderBudgetChart(data) {
     if (!ctx) return;
 
     // Calculate totals for income (from dues_status)
-    const incomeBudget = data.dues_status.reduce((sum, u) => sum + u.expected_ytd, 0);
+    // Use ytd_budget for the budget (not expected_ytd which includes past due)
+    const incomeBudget = data.dues_status.reduce((sum, u) => sum + u.ytd_budget, 0);
     const incomeActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
 
     // Get expense totals
@@ -395,7 +396,8 @@ function renderDashboard(data) {
     document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
 
     // Income & Dues summary
-    const duesBudget = data.dues_status.reduce((sum, u) => sum + u.expected_ytd, 0);
+    // Use ytd_budget for the budget display (not expected_ytd which includes past due)
+    const duesBudget = data.dues_status.reduce((sum, u) => sum + u.ytd_budget, 0);
     const duesActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
     const duesRemaining = duesBudget - duesActual;
 
