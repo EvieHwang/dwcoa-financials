@@ -35,6 +35,9 @@ def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
     accounts = budget_calc.get_account_balances(as_of_date=snapshot_date)
     total_cash = sum(a['balance'] for a in accounts)
 
+    # Get beginning balances for the year (as of Dec 31 prior year)
+    beginning_balances = budget_calc.get_account_balances_at_year_start(year)
+
     # Get budget summary as of date
     budget_summary = budget_calc.get_budget_summary(year, as_of_date=snapshot_date)
 
@@ -61,6 +64,7 @@ def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
             'as_of_date': snapshot_date.isoformat(),
             'year': year,
             'accounts': accounts,
+            'beginning_balances': beginning_balances,
             'total_cash': round(total_cash, 2),
             'income_summary': budget_summary['income_summary'],
             'expense_summary': budget_summary['expense_summary'],

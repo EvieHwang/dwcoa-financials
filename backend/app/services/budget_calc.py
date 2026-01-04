@@ -232,6 +232,46 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     }
 
 
+def get_account_balances_at_year_start(year: int) -> List[dict]:
+    """Get account balances at the end of prior year (Dec 31, year-1).
+
+    This represents the beginning balance for the requested year.
+    If no transactions exist before the year, returns 0 for that account.
+
+    Args:
+        year: The year to get beginning balances for
+
+    Returns:
+        List of account dicts with name and balance
+    """
+    prior_year_end = f"{year - 1}-12-31"
+
+    sql = """
+        SELECT t.account_name as name, t.balance
+        FROM transactions t
+        INNER JOIN (
+            SELECT account_name, MAX(post_date) as max_date
+            FROM transactions
+            WHERE post_date <= ?
+            GROUP BY account_name
+        ) latest ON t.account_name = latest.account_name
+                 AND t.post_date = latest.max_date
+        WHERE t.id = (
+            SELECT MAX(id) FROM transactions t2
+            WHERE t2.account_name = t.account_name
+            AND t2.post_date = latest.max_date
+        )
+        ORDER BY t.account_name
+    """
+    rows = database.fetch_all(sql, (prior_year_end,))
+
+    # Return dict for easy lookup, include all expected accounts with 0 default
+    account_names = ['Checking', 'Reserve Fund', 'Savings']
+    balances = {row['name']: row['balance'] or 0 for row in rows}
+
+    return [{'name': name, 'balance': balances.get(name, 0)} for name in account_names]
+
+
 def get_account_balances(as_of_date: Optional[date] = None) -> List[dict]:
     """Get balance for each account as of a specific date.
 
