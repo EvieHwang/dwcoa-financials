@@ -521,8 +521,8 @@ async function loadReserveTransactions(asOfDate) {
         // Get year from date
         const year = new Date(asOfDate + 'T00:00:00').getFullYear();
 
-        // Fetch reserve account transactions (account ****9226)
-        const response = await apiRequest(`/transactions?year=${year}&account=Reserve Fund&limit=500`);
+        // Fetch reserve account transactions (include_all=true to include Transfers)
+        const response = await apiRequest(`/transactions?year=${year}&account=Reserve Fund&include_all=true&limit=500`);
         const data = await response.json();
 
         // Filter to only show transactions up to the selected date
@@ -1612,7 +1612,32 @@ async function initTransactionsTable() {
                 title: "Description",
                 field: "description",
                 sorter: "string",
-                headerFilter: "input"
+                headerFilter: "input",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return isAdmin ? `<span class="editable-cell">${escapeHtml(val || '')}</span>` : escapeHtml(val || '');
+                },
+                editor: isAdmin ? "input" : false,
+                cellEdited: isAdmin ? async function(cell) {
+                    const row = cell.getRow();
+                    const txnId = row.getData().id;
+                    const newDescription = cell.getValue();
+
+                    try {
+                        await apiRequest(`/transactions/${txnId}`, {
+                            method: 'PATCH',
+                            body: JSON.stringify({ description: newDescription })
+                        });
+
+                        // Flash row green to confirm save
+                        const rowEl = row.getElement();
+                        rowEl.classList.add('row-saved');
+                        setTimeout(() => rowEl.classList.remove('row-saved'), 1000);
+                    } catch (e) {
+                        alert('Failed to save: ' + e.message);
+                        cell.restoreOldValue();
+                    }
+                } : undefined
             },
             {
                 title: "Debit",

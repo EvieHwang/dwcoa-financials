@@ -56,6 +56,32 @@
 
         <!-- Main Content -->
         <main>
+            <!-- Admin Controls -->
+            <section id="admin-section" class="admin-only hidden">
+                <h2>Admin Controls</h2>
+                <div class="admin-buttons four-columns">
+                    <div class="admin-btn-group upload-group">
+                        <input type="file" id="csv-file" accept=".csv" class="hidden">
+                        <button id="choose-file-btn" class="btn-admin">Choose File</button>
+                        <label class="replace-checkbox">
+                            <input type="checkbox" id="replace-all-checkbox">
+                            Replace all
+                        </label>
+                        <button id="upload-btn" class="btn-admin" disabled>Upload</button>
+                    </div>
+                    <div class="admin-btn-group">
+                        <button id="review-btn" class="btn-admin btn-wide">Review Transactions (0)</button>
+                    </div>
+                    <div class="admin-btn-group">
+                        <button id="manage-budgets-btn" class="btn-admin btn-wide">Manage Budgets</button>
+                    </div>
+                    <div class="admin-btn-group">
+                        <button id="manage-rules-btn" class="btn-admin btn-wide">Manage Rules</button>
+                    </div>
+                </div>
+                <span id="upload-status"></span>
+            </section>
+
             <!-- Account Balances -->
             <section id="accounts-section">
                 <h2>Account Balances</h2>
@@ -180,32 +206,6 @@
                     <tbody id="reserve-body"></tbody>
                 </table>
                 <div class="pagination" id="reserve-pagination"></div>
-            </section>
-
-            <!-- Admin Controls -->
-            <section id="admin-section" class="admin-only hidden">
-                <h2>Admin Controls</h2>
-                <div class="admin-buttons four-columns">
-                    <div class="admin-btn-group upload-group">
-                        <input type="file" id="csv-file" accept=".csv" class="hidden">
-                        <button id="choose-file-btn" class="btn-admin">Choose File</button>
-                        <label class="replace-checkbox">
-                            <input type="checkbox" id="replace-all-checkbox">
-                            Replace all
-                        </label>
-                        <button id="upload-btn" class="btn-admin" disabled>Upload</button>
-                    </div>
-                    <div class="admin-btn-group">
-                        <button id="review-btn" class="btn-admin btn-wide">Review Transactions (0)</button>
-                    </div>
-                    <div class="admin-btn-group">
-                        <button id="manage-budgets-btn" class="btn-admin btn-wide">Manage Budgets</button>
-                    </div>
-                    <div class="admin-btn-group">
-                        <button id="manage-rules-btn" class="btn-admin btn-wide">Manage Rules</button>
-                    </div>
-                </div>
-                <span id="upload-status"></span>
             </section>
 
             <!-- Transaction Viewer -->

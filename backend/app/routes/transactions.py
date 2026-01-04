@@ -40,22 +40,38 @@ def handle_list_transactions(query: dict) -> dict:
     """List transactions with optional filters.
 
     Args:
-        query: Query parameters (year, account, category_id, needs_review, limit, offset)
+        query: Query parameters (year, account, category_id, needs_review, limit, offset, include_all)
 
     Returns:
         Response with transaction list
     """
-    # Build query - exclude Transfer categories from display
-    sql = """
-        SELECT t.*,
-               c.name as category,
-               c.type as category_type,
-               ac.name as auto_category
-        FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
-        LEFT JOIN categories ac ON t.auto_category_id = ac.id
-        WHERE (c.type IS NULL OR c.type NOT IN ('Transfer', 'Internal'))
-    """
+    # Build query - exclude Transfer categories by default, unless include_all is set
+    include_all = query.get('include_all') == 'true'
+
+    if include_all:
+        # Include all transactions (for Reserve Fund Activity)
+        sql = """
+            SELECT t.*,
+                   c.name as category,
+                   c.type as category_type,
+                   ac.name as auto_category
+            FROM transactions t
+            LEFT JOIN categories c ON t.category_id = c.id
+            LEFT JOIN categories ac ON t.auto_category_id = ac.id
+            WHERE 1=1
+        """
+    else:
+        # Exclude Transfer and Internal categories from normal display
+        sql = """
+            SELECT t.*,
+                   c.name as category,
+                   c.type as category_type,
+                   ac.name as auto_category
+            FROM transactions t
+            LEFT JOIN categories c ON t.category_id = c.id
+            LEFT JOIN categories ac ON t.auto_category_id = ac.id
+            WHERE (c.type IS NULL OR c.type NOT IN ('Transfer', 'Internal'))
+        """
     params: list = []
 
     # Apply filters
@@ -75,12 +91,20 @@ def handle_list_transactions(query: dict) -> dict:
         sql += " AND t.needs_review = 1"
 
     # Count total (using same filters)
-    count_sql = """
-        SELECT COUNT(*) as count
-        FROM transactions t
-        LEFT JOIN categories c ON t.category_id = c.id
-        WHERE (c.type IS NULL OR c.type NOT IN ('Transfer', 'Internal'))
-    """
+    if include_all:
+        count_sql = """
+            SELECT COUNT(*) as count
+            FROM transactions t
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE 1=1
+        """
+    else:
+        count_sql = """
+            SELECT COUNT(*) as count
+            FROM transactions t
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE (c.type IS NULL OR c.type NOT IN ('Transfer', 'Internal'))
+        """
     if query.get('year'):
         count_sql += " AND strftime('%Y', t.post_date) = ?"
     if query.get('account'):
@@ -348,6 +372,12 @@ def handle_update(transaction_id: int, body: dict) -> dict:
     if 'category_id' in body:
         updates.append("category_id = ?")
         params.append(body['category_id'])
+
+    if 'description' in body:
+        description = body['description'].strip() if body['description'] else ''
+        if description:
+            updates.append("description = ?")
+            params.append(description)
 
     if 'needs_review' in body:
         updates.append("needs_review = ?")
