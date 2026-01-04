@@ -432,8 +432,54 @@ section h2 {
     width: 250px;
 }
 
-.reserve-grid {
+.reserve-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
     margin-bottom: 1rem;
+}
+
+.reserve-summary-box {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 4px;
+    flex: 1;
+}
+
+.reserve-summary-box:first-child {
+    text-align: left;
+}
+
+.reserve-summary-box:nth-child(2) {
+    text-align: center;
+}
+
+.reserve-summary-box:last-child {
+    text-align: right;
+}
+
+.reserve-summary-box .summary-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+}
+
+.reserve-summary-box .summary-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+@media (max-width: 600px) {
+    .reserve-summary-row {
+        flex-direction: column;
+    }
+    .reserve-summary-box,
+    .reserve-summary-box:first-child,
+    .reserve-summary-box:nth-child(2),
+    .reserve-summary-box:last-child {
+        text-align: left;
+    }
 }
 
 .section-note {
