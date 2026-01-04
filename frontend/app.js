@@ -541,7 +541,6 @@ function renderReviewQueue(transactions) {
             <div>
                 <div class="description">${escapeHtml(txn.description)}</div>
                 <div class="meta">${txn.account_name} | ${txn.post_date} | ${formatCurrency(txn.credit || txn.debit)}</div>
-                ${txn.auto_category ? `<div class="meta">Suggested: ${txn.auto_category} (${txn.confidence}%)</div>` : ''}
             </div>
             <select class="category-select">
                 <option value="">Select category...</option>
