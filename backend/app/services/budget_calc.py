@@ -176,8 +176,8 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
         category_id = budget['category_id']
         category_name = budget['category_name']
 
-        # For 2025+, Interest income budget is calculated as 0.1% of operating budget
-        if year >= CALCULATED_DUES_START_YEAR and category_name == 'Interest income':
+        # For 2025+, Interest budget is calculated as 0.1% of operating budget
+        if year >= CALCULATED_DUES_START_YEAR and category_name == 'Interest':
             annual = total_annual_operating_budget * 0.001
             timing = 'monthly'
 

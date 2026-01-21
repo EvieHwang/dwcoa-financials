@@ -77,7 +77,7 @@ INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
 SELECT 2025, id, 5293.11 FROM categories WHERE name = 'Dues 302';
 INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
 SELECT 2025, id, 5700.27 FROM categories WHERE name = 'Dues 303';
--- Interest income budget is calculated (0.1% of operating budget), not stored
+-- Interest budget is calculated (0.1% of operating budget), not stored
 
 -- 2025 Budget: Expenses
 INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
