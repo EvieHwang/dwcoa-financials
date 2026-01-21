@@ -843,10 +843,12 @@ function renderBudgetTable(budgets, year, isLocked = false) {
         return;
     }
 
-    // Filter out Dues categories for 2025+ (they're calculated from operating budget)
+    // Filter out Dues and Interest categories for 2025+ (they're calculated from operating budget)
     let filteredBudgets = budgets;
     if (year >= CALCULATED_DUES_START_YEAR) {
-        filteredBudgets = budgets.filter(b => !b.category_name.startsWith('Dues '));
+        filteredBudgets = budgets.filter(b =>
+            !b.category_name.startsWith('Dues ') && b.category_name !== 'Interest'
+        );
     }
 
     if (filteredBudgets.length === 0) {
