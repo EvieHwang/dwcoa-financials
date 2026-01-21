@@ -131,8 +131,9 @@ def get_ytd_actuals(year: int, as_of_date: Optional[date] = None) -> Dict[int, f
 def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     """Get complete budget summary for dashboard.
 
-    For 2025+, income budget is calculated from total operating budget
-    (what we need to collect from dues) plus Interest Income budget.
+    For 2025+, income budget equals total operating budget:
+    - Unit dues cover 99.9% (distributed by ownership percentages)
+    - Interest income covers 0.1% (calculated, not manually entered)
 
     Args:
         year: Budget year
@@ -161,8 +162,12 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     expense_ytd_budget = 0
     expense_ytd_actual = 0
 
-    # Track Interest Income separately for calculated income
-    interest_ytd_budget = 0
+    # For 2025+, get operating budget upfront to calculate interest income
+    total_operating_budget_ytd = None
+    total_annual_operating_budget = None
+    if year >= CALCULATED_DUES_START_YEAR:
+        total_operating_budget_ytd = get_total_operating_budget(year, as_of_date)
+        total_annual_operating_budget = get_total_annual_operating_budget(year)
 
     for budget in budgets:
         cat_type = budget['category_type']
@@ -170,6 +175,11 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
         annual = budget['annual_amount'] or 0
         category_id = budget['category_id']
         category_name = budget['category_name']
+
+        # For 2025+, Interest income budget is calculated as 0.1% of operating budget
+        if year >= CALCULATED_DUES_START_YEAR and category_name == 'Interest income':
+            annual = total_annual_operating_budget * 0.001
+            timing = 'monthly'
 
         ytd_budget = calculate_ytd_budget(annual, timing, as_of_date)
         ytd_actual = actuals.get(category_id, 0)
@@ -184,7 +194,7 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
             'category': category_name,
             'type': cat_type,
             'timing': timing,
-            'annual_amount': annual,
+            'annual_amount': round(annual, 2),
             'ytd_budget': round(ytd_budget, 2),
             'ytd_actual': round(ytd_actual, 2),
             'remaining': round(remaining, 2)
@@ -193,9 +203,6 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
         if cat_type == 'Income':
             income_categories.append(cat_data)
             income_ytd_actual += ytd_actual
-            # Track Interest Income for calculated budget
-            if category_name == 'Interest income':
-                interest_ytd_budget = ytd_budget
             # For 2025+, we calculate dues from operating budget, not from category budgets
             if year < CALCULATED_DUES_START_YEAR:
                 income_ytd_budget += ytd_budget
@@ -204,14 +211,11 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
             expense_ytd_budget += ytd_budget
             expense_ytd_actual += ytd_actual
 
-    # For 2025+, income budget is calculated from operating expenses + interest
+    # For 2025+, income budget equals operating budget (99.9% dues + 0.1% interest = 100%)
     calculated_income = False
-    total_operating_budget_ytd = None
     if year >= CALCULATED_DUES_START_YEAR:
         calculated_income = True
-        total_operating_budget_ytd = get_total_operating_budget(year, as_of_date)
-        # Total dues budget = total operating budget (units collectively pay 100%)
-        income_ytd_budget = total_operating_budget_ytd + interest_ytd_budget
+        income_ytd_budget = total_operating_budget_ytd
 
     return {
         'year': year,

@@ -36,6 +36,7 @@ INSERT OR IGNORE INTO categories (name, type, default_account, timing) VALUES
 ('Transfers', 'Internal', 'Any', 'annual');
 
 -- Unit ownership percentages and past due balances
+-- Percentages sum to 99.9% (0.1% is allocated to calculated interest income)
 INSERT OR IGNORE INTO units (number, ownership_pct, past_due_balance) VALUES
 ('101', 0.117, 3981.85),
 ('102', 0.104, 0),
@@ -51,6 +52,11 @@ INSERT OR IGNORE INTO units (number, ownership_pct, past_due_balance) VALUES
 UPDATE units SET past_due_balance = 3981.85 WHERE number = '101';
 UPDATE units SET past_due_balance = 371.40 WHERE number = '203';
 UPDATE units SET past_due_balance = 625.44 WHERE number = '303';
+
+-- Update ownership percentages (99.9% total; 0.1% is calculated interest income)
+UPDATE units SET ownership_pct = 0.117 WHERE number IN ('101', '201', '301');
+UPDATE units SET ownership_pct = 0.104 WHERE number IN ('102', '202', '302');
+UPDATE units SET ownership_pct = 0.112 WHERE number IN ('103', '203', '303');
 
 -- 2025 Budget: Income
 INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
@@ -71,8 +77,7 @@ INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
 SELECT 2025, id, 5293.11 FROM categories WHERE name = 'Dues 302';
 INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
 SELECT 2025, id, 5700.27 FROM categories WHERE name = 'Dues 303';
-INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)
-SELECT 2025, id, 26.00 FROM categories WHERE name = 'Interest income';
+-- Interest income budget is calculated (0.1% of operating budget), not stored
 
 -- 2025 Budget: Expenses
 INSERT OR IGNORE INTO budgets (year, category_id, annual_amount)

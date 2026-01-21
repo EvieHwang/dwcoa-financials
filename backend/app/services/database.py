@@ -90,6 +90,18 @@ def run_migrations(conn: sqlite3.Connection) -> None:
         ) AND year >= 2025
     """)
 
+    # Update ownership percentages (99.9% total; 0.1% is calculated interest income)
+    conn.execute("UPDATE units SET ownership_pct = 0.117 WHERE number IN ('101', '201', '301')")
+    conn.execute("UPDATE units SET ownership_pct = 0.104 WHERE number IN ('102', '202', '302')")
+    conn.execute("UPDATE units SET ownership_pct = 0.112 WHERE number IN ('103', '203', '303')")
+
+    # Remove interest income from budgets (now calculated as 0.1% of operating budget)
+    conn.execute("""
+        DELETE FROM budgets WHERE category_id = (
+            SELECT id FROM categories WHERE name = 'Interest income'
+        )
+    """)
+
 
 def get_connection() -> sqlite3.Connection:
     """Get database connection, downloading from S3 if needed.
