@@ -318,10 +318,6 @@ async function loadDashboard(asOfDate = null) {
         const data = await response.json();
 
         renderDashboard(data);
-
-        // Load reserve fund activity
-        const snapshotDate = data.as_of_date || getTodayString();
-        await loadReserveTransactions(snapshotDate);
     } catch (e) {
         console.error('Failed to load dashboard:', e);
         alert('Failed to load dashboard: ' + e.message);
@@ -384,48 +380,165 @@ function renderDashboard(data) {
         document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
     }
 
-    // Account balances - find each account by name
-    const findBalance = (name) => {
+    // Account balances table - render each account with starting, current, and change
+    const accountsTableBody = document.getElementById('accounts-table-body');
+    const accountOrder = ['Checking', 'Savings', 'Reserve Fund'];
+
+    let totalStarting = 0;
+    let totalCurrent = 0;
+
+    // Build table rows
+    accountsTableBody.innerHTML = accountOrder.map(name => {
         const acc = data.accounts.find(a => a.name === name);
-        return acc ? acc.balance : 0;
-    };
+        const starting = acc ? (acc.starting_balance || 0) : 0;
+        const current = acc ? (acc.balance || 0) : 0;
+        const change = current - starting;
 
-    document.getElementById('balance-checking').textContent = formatCurrency(findBalance('Checking'));
-    document.getElementById('balance-savings').textContent = formatCurrency(findBalance('Savings'));
-    document.getElementById('balance-reserve').textContent = formatCurrency(findBalance('Reserve Fund'));
-    document.getElementById('total-cash').textContent = formatCurrency(data.total_cash);
+        totalStarting += starting;
+        totalCurrent += current;
 
-    // Transaction Viewer account balances (duplicate for section header)
-    document.getElementById('txn-balance-checking').textContent = formatCurrency(findBalance('Checking'));
-    document.getElementById('txn-balance-savings').textContent = formatCurrency(findBalance('Savings'));
-    document.getElementById('txn-balance-reserve').textContent = formatCurrency(findBalance('Reserve Fund'));
+        const changeClass = change >= 0 ? 'positive' : 'negative';
+        const changePrefix = change >= 0 ? '+' : '';
+
+        return `
+            <tr>
+                <td>${name}</td>
+                <td>${formatCurrency(starting)}</td>
+                <td>${formatCurrency(current)}</td>
+                <td class="${changeClass}">${changePrefix}${formatCurrency(change)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    // Update totals row
+    const totalChange = totalCurrent - totalStarting;
+    const totalChangeClass = totalChange >= 0 ? 'positive' : 'negative';
+    const totalChangePrefix = totalChange >= 0 ? '+' : '';
+
+    document.getElementById('total-starting').textContent = formatCurrency(totalStarting);
+    document.getElementById('total-current').textContent = formatCurrency(totalCurrent);
+    const totalChangeEl = document.getElementById('total-change');
+    totalChangeEl.textContent = `${totalChangePrefix}${formatCurrency(totalChange)}`;
+    totalChangeEl.className = totalChangeClass;
+
+    // Reserve Fund Goal summary box
+    // Find Reserve Fund account change (already calculated above)
+    const reserveAcc = data.accounts.find(a => a.name === 'Reserve Fund');
+    const reserveStarting = reserveAcc ? (reserveAcc.starting_balance || 0) : 0;
+    const reserveCurrent = reserveAcc ? (reserveAcc.balance || 0) : 0;
+    const reserveChange = reserveCurrent - reserveStarting;
+
+    // Find Reserve Fund goal from expense categories (look for "Reserve Fund" or "Reserve Contribution")
+    const reserveCategory = data.expense_summary.categories.find(cat => {
+        const name = cat.category.toLowerCase();
+        return name === 'reserve fund' || name === 'reserve contribution';
+    });
+    const reserveGoal = reserveCategory ? reserveCategory.ytd_budget : 0;
+    const reserveDifference = reserveChange - reserveGoal;
+
+    document.getElementById('reserve-goal').textContent = formatCurrency(reserveGoal);
+    const reserveActualChangeEl = document.getElementById('reserve-actual-change');
+    const reserveChangePrefix = reserveChange >= 0 ? '+' : '';
+    reserveActualChangeEl.textContent = `${reserveChangePrefix}${formatCurrency(reserveChange)}`;
+    reserveActualChangeEl.className = reserveChange >= 0 ? 'positive' : 'negative';
+
+    const reserveDiffEl = document.getElementById('reserve-difference');
+    const reserveDiffPrefix = reserveDifference >= 0 ? '+' : '';
+    reserveDiffEl.textContent = `${reserveDiffPrefix}${formatCurrency(reserveDifference)}`;
+    reserveDiffEl.className = reserveDifference >= 0 ? 'positive' : 'negative';
+
+    // Net Income summary box
+    const incomeActual = data.income_summary.ytd_actual || 0;
+    const expenseActual = data.expense_summary.ytd_actual || 0;
+    const netIncome = incomeActual - expenseActual;
+
+    document.getElementById('net-income-value').textContent = formatCurrency(incomeActual);
+    document.getElementById('net-expenses-value').textContent = formatCurrency(expenseActual);
+    const netTotalEl = document.getElementById('net-total');
+    const netPrefix = netIncome >= 0 ? '+' : '';
+    netTotalEl.textContent = `${netPrefix}${formatCurrency(netIncome)}`;
+    netTotalEl.className = netIncome >= 0 ? 'positive' : 'negative';
 
     // Income & Dues summary
-    // Use income_summary.ytd_budget (total operating budget) for the budget display
-    // Don't sum individual unit shares as ownership percentages may not equal exactly 100%
-    const duesBudget = data.income_summary.ytd_budget;
-    const duesActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
-    const duesRemaining = duesBudget - duesActual;
+    // Find Interest category from income categories
+    const interestCategory = data.income_summary.categories.find(cat =>
+        cat.category.toLowerCase().includes('interest')
+    );
+    const interestBudget = interestCategory ? interestCategory.ytd_budget : 0;
+    const interestActual = interestCategory ? interestCategory.ytd_actual : 0;
+    const interestRemaining = interestBudget - interestActual;
 
-    document.getElementById('dues-budget').textContent = formatCurrency(duesBudget);
-    document.getElementById('dues-actual').textContent = formatCurrency(duesActual);
+    // Total income = dues + interest
+    const duesOnlyActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
+    const incomeBudget = data.income_summary.ytd_budget;
+    const incomeActualTotal = duesOnlyActual + interestActual;
+    const incomeRemaining = incomeBudget - incomeActualTotal;
+
+    document.getElementById('dues-budget').textContent = formatCurrency(incomeBudget);
+    document.getElementById('dues-actual').textContent = formatCurrency(incomeActualTotal);
     const duesRemainingEl = document.getElementById('dues-remaining');
-    duesRemainingEl.textContent = formatCurrency(duesRemaining);
-    // For income: negative remaining (surplus) = green, positive remaining (shortfall) = red
-    duesRemainingEl.className = duesRemaining <= 0 ? 'positive' : 'negative';
+    // Invert sign: surplus (negative remaining) shows as positive, deficit shows as negative
+    const displayIncomeRemaining = -incomeRemaining;
+    duesRemainingEl.textContent = formatCurrency(displayIncomeRemaining);
+    duesRemainingEl.className = displayIncomeRemaining >= 0 ? 'positive' : 'negative';
 
-    // Dues table (compact)
+    // Dues table (compact) - unit rows
     const duesTable = document.querySelector('#dues-table tbody');
-    duesTable.innerHTML = data.dues_status.map(unit => `
+
+    // Calculate totals for the totals row
+    let totalPastDue = 0;
+    let totalBudget = 0;
+    let totalActual = 0;
+    let totalRemaining = 0;
+
+    let duesRows = data.dues_status.map(unit => {
+        totalPastDue += unit.past_due_balance || 0;
+        totalBudget += unit.ytd_budget || 0;
+        totalActual += unit.paid_ytd || 0;
+        totalRemaining += unit.outstanding || 0;
+        // Remaining: negative outstanding = surplus (green), positive = deficit (red)
+        // Display inverted so minus sign appears on deficit
+        const displayRemaining = -unit.outstanding;
+        return `
         <tr>
             <td>${unit.unit}</td>
             <td>${formatPercent(unit.ownership_pct)}</td>
             <td>${unit.past_due_balance > 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
             <td>${formatCurrency(unit.ytd_budget)}</td>
             <td>${formatCurrency(unit.paid_ytd)}</td>
-            <td class="${unit.outstanding > 0 ? 'negative' : 'positive'}">${formatCurrency(unit.outstanding)}</td>
+            <td class="${displayRemaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(displayRemaining)}</td>
         </tr>
-    `).join('');
+    `}).join('');
+
+    // Add Interest row after unit rows (0.1% share)
+    totalBudget += interestBudget;
+    totalActual += interestActual;
+    totalRemaining += interestRemaining;
+    const displayInterestRemaining = -interestRemaining;
+    duesRows += `
+        <tr class="interest-row">
+            <td>Interest</td>
+            <td>${formatPercent(0.001)}</td>
+            <td>-</td>
+            <td>${formatCurrency(interestBudget)}</td>
+            <td>${formatCurrency(interestActual)}</td>
+            <td class="${displayInterestRemaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(displayInterestRemaining)}</td>
+        </tr>
+    `;
+
+    // Add totals row (100% total share)
+    const displayTotalRemaining = -totalRemaining;
+    duesRows += `
+        <tr class="totals-row">
+            <td>Total</td>
+            <td>100.0%</td>
+            <td>${totalPastDue > 0 ? formatCurrency(totalPastDue) : '-'}</td>
+            <td>${formatCurrency(totalBudget)}</td>
+            <td>${formatCurrency(totalActual)}</td>
+            <td class="${displayTotalRemaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(displayTotalRemaining)}</td>
+        </tr>
+    `;
+    duesTable.innerHTML = duesRows;
 
     // Expense summary
     const expense = data.expense_summary;
@@ -436,7 +549,7 @@ function renderDashboard(data) {
     expenseRemainingEl.className = expense.remaining >= 0 ? 'positive' : 'negative';
 
     const expenseTable = document.querySelector('#expense-table tbody');
-    expenseTable.innerHTML = expense.categories.map(cat => `
+    let expenseRows = expense.categories.map(cat => `
         <tr>
             <td>${cat.category}</td>
             <td>${formatCurrency(cat.ytd_budget)}</td>
@@ -445,21 +558,16 @@ function renderDashboard(data) {
         </tr>
     `).join('');
 
-    // Find Reserve Contribution budget for Reserve Fund Activity section
-    // Check for various possible category names (case-insensitive)
-    const reserveContribution = expense.categories.find(cat => {
-        const name = cat.category.toLowerCase();
-        return name === 'reserve fund' || name === 'reserve contribution' || name === 'reserve expenses';
-    });
-    const reserveBudgetAmount = reserveContribution ? reserveContribution.ytd_budget : 0;
-
-    // Debug: log expense categories to help troubleshoot
-    console.log('Expense categories:', expense.categories.map(c => c.category));
-    console.log('Found reserve category:', reserveContribution);
-
-    document.getElementById('reserve-budget').textContent = formatCurrency(reserveBudgetAmount);
-    // Store for use in loadReserveTransactions
-    window.reserveBudgetAmount = reserveBudgetAmount;
+    // Add totals row
+    expenseRows += `
+        <tr class="totals-row">
+            <td>Total</td>
+            <td>${formatCurrency(expense.ytd_budget)}</td>
+            <td>${formatCurrency(expense.ytd_actual)}</td>
+            <td class="${expense.remaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(expense.remaining)}</td>
+        </tr>
+    `;
+    expenseTable.innerHTML = expenseRows;
 
     // Review button - show count and gray out if zero
     const reviewBtn = document.getElementById('review-btn');
@@ -528,132 +636,6 @@ async function downloadPDF() {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-}
-
-// Reserve Fund Activity - using Tabulator like Transaction History
-let reserveTable = null;
-
-async function loadReserveTransactions(asOfDate) {
-    const tableEl = document.getElementById('reserve-table');
-    if (!tableEl) return;
-
-    try {
-        // Get year from date
-        const year = new Date(asOfDate + 'T00:00:00').getFullYear();
-
-        // Fetch reserve account transactions (include_all=true to include Transfers)
-        const response = await apiRequest(`/transactions?year=${year}&account=Reserve Fund&include_all=true&limit=500`);
-        const data = await response.json();
-
-        // Filter to only show transactions up to the selected date
-        const reserveTransactions = data.transactions.filter(txn => txn.post_date <= asOfDate);
-
-        // Calculate net change
-        const netChange = reserveTransactions.reduce((sum, txn) => {
-            return sum + (txn.credit || 0) - (txn.debit || 0);
-        }, 0);
-
-        // Update Reserve Fund Activity summary
-        const reserveActualEl = document.getElementById('reserve-actual');
-        const reserveRemainingEl = document.getElementById('reserve-remaining');
-        const reserveBudget = window.reserveBudgetAmount || 0;
-        const remaining = reserveBudget - netChange;
-
-        // Actual Net Change
-        const prefix = netChange >= 0 ? '+' : '';
-        reserveActualEl.textContent = `${prefix}${formatCurrency(netChange)}`;
-        reserveActualEl.className = netChange >= 0 ? 'positive' : 'negative';
-
-        // Remaining (positive = under goal, negative = exceeded goal)
-        reserveRemainingEl.textContent = formatCurrency(remaining);
-        // Under goal (positive remaining) is negative/red, exceeded goal (negative remaining) is positive/green
-        reserveRemainingEl.className = remaining <= 0 ? 'positive' : 'negative';
-
-        // Initialize or update Tabulator
-        if (reserveTransactions.length === 0) {
-            tableEl.innerHTML = '<p style="padding: 1rem; color: #666;">No reserve fund activity for this period.</p>';
-            if (reserveTable) {
-                reserveTable.destroy();
-                reserveTable = null;
-            }
-            return;
-        }
-
-        if (reserveTable) {
-            // Update existing table data
-            reserveTable.setData(reserveTransactions);
-        } else {
-            // Create new Tabulator table
-            reserveTable = new Tabulator("#reserve-table", {
-                data: reserveTransactions,
-                layout: "fitColumns",
-                responsiveLayout: "collapse",
-                pagination: true,
-                paginationSize: 25,
-                paginationSizeSelector: [25, 50, 100],
-                initialSort: [{ column: "post_date", dir: "desc" }],
-                placeholder: "No reserve fund activity",
-                columns: [
-                    {
-                        title: "Post Date",
-                        field: "post_date",
-                        sorter: function(a, b) {
-                            return a.localeCompare(b);
-                        },
-                        headerFilter: "input",
-                        width: 120
-                    },
-                    {
-                        title: "Category",
-                        field: "category",
-                        sorter: "string",
-                        headerFilter: "input",
-                        formatter: function(cell) {
-                            const val = cell.getValue();
-                            if (!val) return '<span class="uncategorized">Uncategorized</span>';
-                            return escapeHtml(val);
-                        }
-                    },
-                    {
-                        title: "Description",
-                        field: "description",
-                        sorter: "string",
-                        headerFilter: "input",
-                        formatter: function(cell) {
-                            return escapeHtml(cell.getValue() || '');
-                        }
-                    },
-                    {
-                        title: "Credit",
-                        field: "credit",
-                        sorter: "number",
-                        hozAlign: "right",
-                        formatter: function(cell) {
-                            const val = cell.getValue();
-                            if (val === null || val === undefined || val === '' || val === 0) return '';
-                            return formatCurrency(val);
-                        },
-                        width: 110
-                    },
-                    {
-                        title: "Debit",
-                        field: "debit",
-                        sorter: "number",
-                        hozAlign: "right",
-                        formatter: function(cell) {
-                            const val = cell.getValue();
-                            if (val === null || val === undefined || val === '' || val === 0) return '';
-                            return formatCurrency(val);
-                        },
-                        width: 110
-                    }
-                ]
-            });
-        }
-    } catch (e) {
-        console.error('Error loading reserve transactions:', e);
-        tableEl.innerHTML = '<p style="padding: 1rem; color: #dc2626;">Error loading reserve fund activity.</p>';
-    }
 }
 
 // Review functions
@@ -1492,18 +1474,15 @@ let transactionsTable = null;
 async function loadTransactions() {
     try {
         // Get all transactions (no pagination from server, let Tabulator handle it)
-        console.log('Fetching transactions from API...');
-        const response = await apiRequest('/transactions?limit=10000');
-        console.log('Transactions API response status:', response.status);
+        // Admin sees all transactions including transfers; homeowners see only income/expenses
+        const includeAll = userRole === 'admin' ? '&include_all=true' : '';
+        const response = await apiRequest(`/transactions?limit=10000${includeAll}`);
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('Transactions API error:', response.status, errorData);
             return [];
         }
 
         const data = await response.json();
-        console.log('Loaded transactions:', data.transactions?.length || 0, 'total:', data.total);
         return data.transactions || [];
     } catch (e) {
         console.error('Failed to load transactions:', e);
@@ -1526,7 +1505,6 @@ async function initTransactionsTable() {
 
     try {
         const transactions = await loadTransactions();
-        console.log('Initializing Tabulator with', transactions.length, 'transactions');
 
         if (typeof Tabulator === 'undefined') {
             tableEl.innerHTML = '<p class="error">Error: Tabulator library not loaded. Check browser console.</p>';
