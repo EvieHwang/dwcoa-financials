@@ -230,6 +230,44 @@ LIMIT 10;
 
 ---
 
+## Seed Data: 2025 Past Due Balances
+
+The bank statements do not reveal existing past due balances from prior years. These historical balances must be manually seeded to establish the starting point for automatic carryover calculations.
+
+**2025 Past Due Balances** (beginning of year, carried from pre-2025):
+
+| Unit | Past Due Balance | Notes |
+|------|------------------|-------|
+| 101 | $3,981.85 | Manual seed |
+| 102 | $0.00 | Current |
+| 103 | $0.00 | Current |
+| 201 | $529.00 | Manual seed |
+| 202 | $0.00 | Current |
+| 203 | $371.40 | Manual seed |
+| 301 | $0.00 | Current |
+| 302 | $0.00 | Current |
+| 303 | $625.44 | Manual seed |
+
+**Seed SQL**:
+```sql
+-- Insert 2025 past due balances (manual seed data, auto_calculated=0)
+INSERT OR REPLACE INTO unit_past_dues (unit_number, year, past_due_balance, auto_calculated)
+VALUES
+    ('101', 2025, 3981.85, 0),
+    ('102', 2025, 0.00, 0),
+    ('103', 2025, 0.00, 0),
+    ('201', 2025, 529.00, 0),
+    ('202', 2025, 0.00, 0),
+    ('203', 2025, 371.40, 0),
+    ('301', 2025, 0.00, 0),
+    ('302', 2025, 0.00, 0),
+    ('303', 2025, 625.44, 0);
+```
+
+**Important**: These are marked `auto_calculated=0` (manual) so they won't be overwritten by any future carryover calculations.
+
+---
+
 ## Data Validation Rules
 
 1. **Unit number**: Must be one of: 101, 102, 103, 201, 202, 203, 301, 302, 303
