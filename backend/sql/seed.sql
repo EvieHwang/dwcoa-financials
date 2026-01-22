@@ -37,19 +37,21 @@ INSERT OR IGNORE INTO categories (name, type, default_account, timing) VALUES
 
 -- Unit ownership percentages and past due balances
 -- Percentages sum to 99.9% (0.1% is allocated to calculated interest income)
+-- Note: past_due_balance column is deprecated; use unit_past_dues table instead
 INSERT OR IGNORE INTO units (number, ownership_pct, past_due_balance) VALUES
 ('101', 0.117, 3981.85),
 ('102', 0.104, 0),
 ('103', 0.112, 0),
-('201', 0.117, 0),
+('201', 0.117, 529.00),
 ('202', 0.104, 0),
 ('203', 0.112, 371.40),
 ('301', 0.117, 0),
 ('302', 0.104, 0),
 ('303', 0.112, 625.44);
 
--- Update past due balances for existing databases
+-- Update past due balances for existing databases (deprecated column)
 UPDATE units SET past_due_balance = 3981.85 WHERE number = '101';
+UPDATE units SET past_due_balance = 529.00 WHERE number = '201';
 UPDATE units SET past_due_balance = 371.40 WHERE number = '203';
 UPDATE units SET past_due_balance = 625.44 WHERE number = '303';
 
@@ -107,3 +109,11 @@ SELECT 2026, category_id, annual_amount FROM budgets WHERE year = 2025;
 INSERT OR IGNORE INTO app_config (key, value) VALUES
 ('last_upload_at', ''),
 ('current_year', '2026');
+
+-- 2025 Historical Debt (pre-transaction-data balances)
+-- These are year-specific past dues for 2025, representing debt from before transaction data
+INSERT OR IGNORE INTO unit_past_dues (unit_number, year, past_due_balance) VALUES
+('101', 2025, 3981.85),
+('201', 2025, 529.00),
+('203', 2025, 371.40),
+('303', 2025, 625.44);

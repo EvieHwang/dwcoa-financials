@@ -23,7 +23,7 @@
 
 **Objective**: Seed 2025 historical debt (pre-transaction-data balances)
 
-- [ ] T001 [US2] Seed 2025 historical debt into `unit_past_dues` table:
+- [x] T001 [US2] Seed 2025 historical debt into `unit_past_dues` table:
   - Unit 101: $3,981.85
   - Unit 201: $529.00
   - Unit 203: $371.40
@@ -42,22 +42,22 @@
 
 ### Database Layer
 
-- [ ] T002 [US1] Add `get_total_operating_budget_annual(year)` function to `backend/app/services/database.py` - returns full annual operating budget (not YTD)
-- [ ] T003 [P] [US3] Add `get_unit_payments_total(unit_number, year)` function to `database.py` - sum of dues payments for unit in year
-- [ ] T004 [P] [US5] Add `get_unit_recent_payments(unit_number, year, limit=10)` function to `database.py` - list of recent payment transactions
+- [x] T002 [US1] Add `get_total_operating_budget_annual(year)` function to `backend/app/services/database.py` - returns full annual operating budget (not YTD)
+- [x] T003 [P] [US3] Add `get_unit_payments_total(unit_number, year)` function to `database.py` - sum of dues payments for unit in year
+- [x] T004 [P] [US5] Add `get_unit_recent_payments(unit_number, year, limit=10)` function to `database.py` - list of recent payment transactions
 
 ### Route Handler
 
-- [ ] T005 [US1] Create new file `backend/app/routes/statement.py` with `handle_get_statement(unit, year)` function:
+- [x] T005 [US1] Create new file `backend/app/routes/statement.py` with `handle_get_statement(unit, year)` function:
   - Calculate carryover dynamically: `prior_budgeted + prior_historical_debt - prior_paid`
   - Calculate current year totals: `carryover + annual_dues - paid_ytd`
   - Calculate payment guidance: `remaining / months_remaining`
   - Return complete statement response structure
-- [ ] T006 [US5] Add `handle_get_payment_history(unit, year)` function to `statement.py` for full payment history endpoint
+- [x] T006 [US5] Add `handle_get_payment_history(unit, year)` function to `statement.py` for full payment history endpoint
 
 ### Router Integration
 
-- [ ] T007 [US1] Add statement routes to `backend/app/main.py`:
+- [x] T007 [US1] Add statement routes to `backend/app/main.py`:
   - `GET /api/statement/{unit}` → `statement.handle_get_statement`
   - `GET /api/statement/{unit}/payments` → `statement.handle_get_payment_history`
 
