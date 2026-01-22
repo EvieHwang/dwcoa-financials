@@ -127,12 +127,14 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
     income_budget = income['ytd_budget']
     income_actual = income['ytd_actual']
     income_remaining = income_budget - income_actual
+    # Invert for display: surplus positive (green), deficit negative (red)
+    display_income_remaining = -income_remaining
 
     # Summary box (like dashboard)
     summary_data = [
         ['Budget (YTD):', format_currency(income_budget)],
         ['Actual:', format_currency(income_actual)],
-        ['Remaining:', format_currency(income_remaining)]
+        ['Remaining:', format_currency(display_income_remaining)]
     ]
     summary_table = Table(summary_data, colWidths=[1.5*inch, 1.5*inch])
     summary_table.setStyle(TableStyle([
@@ -144,28 +146,71 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
     elements.append(summary_table)
     elements.append(Spacer(1, 6))
 
-    # Dues by unit table - match dashboard columns
-    dues_table_data = [['Unit', 'Share', 'Budget', 'Actual', 'Remaining']]
+    # Find Interest from income categories
+    interest_cat = next((c for c in income['categories'] if 'interest' in c['category'].lower()), None)
+    interest_budget = interest_cat['ytd_budget'] if interest_cat else 0
+    interest_actual = interest_cat['ytd_actual'] if interest_cat else 0
+    interest_remaining = interest_budget - interest_actual
+
+    # Calculate totals
+    total_past_due = sum(u['past_due_balance'] for u in dues_data['units'])
+    total_budget = sum(u['ytd_budget'] for u in dues_data['units']) + interest_budget
+    total_actual = sum(u['paid_ytd'] for u in dues_data['units']) + interest_actual
+    total_remaining = sum(u['outstanding'] for u in dues_data['units']) + interest_remaining
+
+    # Dues by unit table - match dashboard columns with Past Due
+    dues_table_data = [['Unit', 'Share', 'Past Due', 'Budget', 'Actual', 'Remaining']]
     for unit in dues_data['units']:
+        past_due_display = format_currency(unit['past_due_balance']) if unit['past_due_balance'] > 0 else '-'
+        # Invert remaining for display
+        display_remaining = -unit['outstanding']
         dues_table_data.append([
             unit['unit'],
             f"{unit['ownership_pct']*100:.1f}%",
-            format_currency(unit['expected_ytd']),
+            past_due_display,
+            format_currency(unit['ytd_budget']),
             format_currency(unit['paid_ytd']),
-            format_currency(unit['outstanding'])
+            format_currency(display_remaining)
         ])
 
-    dues_table = Table(dues_table_data, colWidths=[0.75*inch, 0.9*inch, 1.25*inch, 1.25*inch, 1.25*inch])
+    # Interest row
+    display_interest_remaining = -interest_remaining
+    dues_table_data.append([
+        'Interest', '-', '-',
+        format_currency(interest_budget),
+        format_currency(interest_actual),
+        format_currency(display_interest_remaining)
+    ])
+
+    # Totals row
+    total_past_due_display = format_currency(total_past_due) if total_past_due > 0 else '-'
+    display_total_remaining = -total_remaining
+    dues_table_data.append([
+        'Total', '-', total_past_due_display,
+        format_currency(total_budget),
+        format_currency(total_actual),
+        format_currency(display_total_remaining)
+    ])
+
+    num_rows = len(dues_table_data)
+    dues_table = Table(dues_table_data, colWidths=[0.7*inch, 0.65*inch, 0.85*inch, 1*inch, 1*inch, 1*inch])
     dues_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Totals row bold
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.black),  # Thicker line above totals
     ]))
     elements.append(dues_table)
+
+    # Note about past due balances
+    note_style = ParagraphStyle('Note', parent=normal_style, fontSize=8, textColor=colors.grey, fontName='Helvetica-Oblique')
+    elements.append(Spacer(1, 4))
+    elements.append(Paragraph("*Past due balances are not included in the current year's operating budget.", note_style))
     elements.append(Spacer(1, 12))
 
     # Operating Expenses - match dashboard layout
@@ -199,17 +244,31 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
             format_currency(cat['remaining'])
         ])
 
+    # Totals row
+    expense_data.append([
+        'Total',
+        format_currency(expense['ytd_budget']),
+        format_currency(expense['ytd_actual']),
+        format_currency(expense['remaining'])
+    ])
+
     expense_table = Table(expense_data, colWidths=[2.5*inch, 1.15*inch, 1.15*inch, 1.15*inch])
     expense_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),  # Totals row bold
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('LINEABOVE', (0, -1), (-1, -1), 1.5, colors.black),  # Thicker line above totals
     ]))
     elements.append(expense_table)
+
+    # Note about Reserve Contribution
+    elements.append(Spacer(1, 4))
+    elements.append(Paragraph("*Reserve Contribution is funded through internal transfers with no outgoing expense.", note_style))
 
     # Footer
     elements.append(Spacer(1, 24))

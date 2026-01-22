@@ -83,24 +83,10 @@ def run_migrations(conn: sqlite3.Connection) -> None:
     # Change Reserve Contribution from Transfer to Expense (for calculated dues)
     conn.execute("UPDATE categories SET type = 'Expense' WHERE name = 'Reserve Contribution'")
 
-    # Delete Dues budget entries for 2025+ (categories remain for transactions)
-    conn.execute("""
-        DELETE FROM budgets WHERE category_id IN (
-            SELECT id FROM categories WHERE name LIKE 'Dues %'
-        ) AND year >= 2025
-    """)
-
     # Update ownership percentages (99.9% total; 0.1% is calculated interest income)
     conn.execute("UPDATE units SET ownership_pct = 0.117 WHERE number IN ('101', '201', '301')")
     conn.execute("UPDATE units SET ownership_pct = 0.104 WHERE number IN ('102', '202', '302')")
     conn.execute("UPDATE units SET ownership_pct = 0.112 WHERE number IN ('103', '203', '303')")
-
-    # Remove Interest from budgets (now calculated as 0.1% of operating budget)
-    conn.execute("""
-        DELETE FROM budgets WHERE category_id = (
-            SELECT id FROM categories WHERE name = 'Interest'
-        )
-    """)
 
 
 def get_connection() -> sqlite3.Connection:
@@ -124,7 +110,9 @@ def get_connection() -> sqlite3.Connection:
         # Run migrations on existing database
         run_migrations(_db_connection)
         _db_connection.commit()
-        save_db()
+        # Don't save here - only save when actual user data changes
+        # This prevents race conditions where concurrent Lambda instances
+        # overwrite each other's changes with stale data
     else:
         # Create new database
         _db_connection = sqlite3.connect(_db_path)
@@ -629,3 +617,79 @@ def set_budget_lock(year: int, locked: bool) -> dict:
         """, (year, 1 if locked else 0, 1 if locked else 0))
 
     return get_budget_lock(year)
+
+
+# =============================================================================
+# Statement API Functions
+# =============================================================================
+
+def get_total_operating_budget_annual(year: int) -> float:
+    """Get total annual operating budget for a year (not YTD).
+
+    Operating budget excludes Reserve Contribution and Reserve Expenses.
+
+    Args:
+        year: Budget year
+
+    Returns:
+        Total annual operating budget amount
+    """
+    sql = """
+        SELECT SUM(b.annual_amount) as total
+        FROM budgets b
+        JOIN categories c ON b.category_id = c.id
+        WHERE b.year = ?
+        AND c.type = 'Expense'
+        AND c.name NOT IN ('Reserve Contribution', 'Reserve Expenses')
+    """
+    row = fetch_one(sql, (year,))
+    return row['total'] if row and row['total'] else 0.0
+
+
+def get_unit_payments_total(unit_number: str, year: int) -> float:
+    """Get total dues payments for a unit in a specific year.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+        year: Payment year
+
+    Returns:
+        Total payments amount
+    """
+    sql = """
+        SELECT SUM(t.credit) as total
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE c.name = ?
+        AND strftime('%Y', t.post_date) = ?
+    """
+    category_name = f'Dues {unit_number}'
+    row = fetch_one(sql, (category_name, str(year)))
+    return row['total'] if row and row['total'] else 0.0
+
+
+def get_unit_recent_payments(unit_number: str, year: int, limit: int = 10) -> List[dict]:
+    """Get recent dues payments for a unit in a specific year.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+        year: Payment year
+        limit: Maximum number of payments to return
+
+    Returns:
+        List of payment dicts with date and amount
+    """
+    sql = """
+        SELECT t.post_date as date, t.credit as amount, t.description
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE c.name = ?
+        AND strftime('%Y', t.post_date) = ?
+        AND t.credit IS NOT NULL
+        AND t.credit > 0
+        ORDER BY t.post_date DESC
+        LIMIT ?
+    """
+    category_name = f'Dues {unit_number}'
+    rows = fetch_all(sql, (category_name, str(year), limit))
+    return [{'date': row['date'], 'amount': row['amount']} for row in rows]

@@ -121,7 +121,7 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
     is_admin = role == 'admin'
 
     # Import route handlers (lazy to avoid circular imports)
-    from app.routes import dashboard, transactions, categories, budgets, dues, reports, rules, units
+    from app.routes import dashboard, transactions, categories, budgets, dues, reports, rules, units, statement
 
     # Dashboard
     if path == '/api/dashboard' and method == 'GET':
@@ -188,6 +188,18 @@ def route_request(method: str, path: str, headers: dict, body: dict, query: dict
     if path == '/api/dues' and method == 'GET':
         year = int(query.get('year', 0)) or None
         return dues.handle_get_dues(year)
+
+    # Statements (unit financial statements)
+    if path.startswith('/api/statement/') and method == 'GET':
+        parts = path.split('/')
+        unit_number = parts[3]  # /api/statement/{unit}
+        year = int(query.get('year', 0)) or None
+
+        # Check if this is the payments sub-route
+        if len(parts) > 4 and parts[4] == 'payments':
+            return statement.handle_get_payment_history(unit_number, year)
+        else:
+            return statement.handle_get_statement(unit_number, year)
 
     # Reports
     if path == '/api/reports/pdf' and method == 'GET':

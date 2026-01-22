@@ -1347,6 +1347,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Unit selector for My Account section
+    initUnitSelector();
+
+    // View full payment history button
+    const viewHistoryBtn = document.getElementById('view-full-history-btn');
+    if (viewHistoryBtn) {
+        viewHistoryBtn.addEventListener('click', () => {
+            if (selectedUnit) {
+                loadFullPaymentHistory(selectedUnit);
+            }
+        });
+    }
+
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', async () => {
             const patternInput = document.getElementById('new-rule-pattern');
@@ -1809,4 +1822,267 @@ function showRulesStatus(message, type) {
     setTimeout(() => {
         statusEl.classList.add('hidden');
     }, 3000);
+}
+
+// =============================================================================
+// My Account / Unit Statement Functions
+// =============================================================================
+
+let selectedUnit = null;
+
+function initUnitSelector() {
+    const selector = document.getElementById('unit-selector');
+    if (!selector) return;
+
+    // Restore saved selection from localStorage
+    const savedUnit = localStorage.getItem('dwcoa_selected_unit');
+    if (savedUnit) {
+        selector.value = savedUnit;
+        selectedUnit = savedUnit;
+        loadStatement(savedUnit);
+    }
+
+    // Handle unit selection change
+    selector.addEventListener('change', async () => {
+        const unit = selector.value;
+        if (unit) {
+            selectedUnit = unit;
+            localStorage.setItem('dwcoa_selected_unit', unit);
+            await loadStatement(unit);
+        } else {
+            selectedUnit = null;
+            localStorage.removeItem('dwcoa_selected_unit');
+            hideMyAccountSection();
+        }
+    });
+}
+
+function hideMyAccountSection() {
+    const section = document.getElementById('my-account-section');
+    if (section) section.classList.add('hidden');
+}
+
+async function loadStatement(unit) {
+    if (!unit) {
+        hideMyAccountSection();
+        return;
+    }
+
+    try {
+        const response = await apiRequest(`/statement/${unit}`);
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Failed to load statement:', error);
+            return;
+        }
+
+        const data = await response.json();
+        renderMyAccount(data);
+    } catch (e) {
+        console.error('Failed to load statement:', e);
+    }
+}
+
+function renderMyAccount(data) {
+    const section = document.getElementById('my-account-section');
+    if (!section) return;
+
+    // Show the section
+    section.classList.remove('hidden');
+
+    // ==========================================================================
+    // Budget lock notice
+    // ==========================================================================
+    const noticeEl = document.getElementById('my-account-notice');
+    if (noticeEl) {
+        if (!data.current_year.budget_locked) {
+            noticeEl.textContent = `Budget for ${data.current_year.year} is pending approval. Amounts shown are preliminary.`;
+            noticeEl.classList.remove('hidden');
+        } else {
+            noticeEl.classList.add('hidden');
+        }
+    }
+
+    // ==========================================================================
+    // Prior Year Summary
+    // ==========================================================================
+    const priorYearLabel = document.getElementById('prior-year-label');
+    const priorYearContent = document.getElementById('prior-year-content');
+    const priorYearNoData = document.getElementById('prior-year-no-data');
+
+    if (data.prior_year) {
+        priorYearLabel.textContent = data.prior_year.year;
+        priorYearContent.classList.remove('hidden');
+        priorYearNoData.classList.add('hidden');
+
+        document.getElementById('prior-budgeted').textContent = formatCurrency(data.prior_year.annual_dues_budgeted);
+        document.getElementById('prior-paid').textContent = formatCurrency(data.prior_year.total_paid);
+
+        const priorCarryoverEl = document.getElementById('prior-carryover');
+        const carryover = data.prior_year.balance_carried_forward;
+        if (carryover < 0) {
+            // Credit balance
+            priorCarryoverEl.textContent = `(${formatCurrency(Math.abs(carryover))}) credit`;
+            priorCarryoverEl.className = 'positive';
+        } else if (carryover > 0) {
+            priorCarryoverEl.textContent = formatCurrency(carryover);
+            priorCarryoverEl.className = 'negative';
+        } else {
+            priorCarryoverEl.textContent = '$0.00';
+            priorCarryoverEl.className = '';
+        }
+    } else {
+        priorYearLabel.textContent = data.current_year.year - 1;
+        priorYearContent.classList.add('hidden');
+        priorYearNoData.classList.remove('hidden');
+    }
+
+    // ==========================================================================
+    // Current Year Summary
+    // ==========================================================================
+    const currentYearLabel = document.getElementById('current-year-label');
+    currentYearLabel.textContent = data.current_year.year;
+
+    document.getElementById('current-carryover').textContent = formatCurrency(data.current_year.carryover_balance);
+    document.getElementById('current-annual-dues').textContent = formatCurrency(data.current_year.annual_dues);
+    document.getElementById('current-total-due').textContent = formatCurrency(data.current_year.total_due);
+    document.getElementById('current-paid-ytd').textContent = formatCurrency(data.current_year.paid_ytd);
+
+    const remainingEl = document.getElementById('current-remaining');
+    const remaining = data.current_year.remaining_balance;
+    if (remaining < 0) {
+        remainingEl.textContent = `(${formatCurrency(Math.abs(remaining))}) credit`;
+        remainingEl.className = 'positive';
+    } else if (remaining > 0) {
+        remainingEl.textContent = formatCurrency(remaining);
+        remainingEl.className = 'negative';
+    } else {
+        remainingEl.textContent = '$0.00';
+        remainingEl.className = 'positive';
+    }
+
+    // ==========================================================================
+    // Payment Guidance
+    // ==========================================================================
+    const paidInFullMsg = document.getElementById('paid-in-full-message');
+    const creditBalanceMsg = document.getElementById('credit-balance-message');
+    const guidanceContent = document.getElementById('payment-guidance-content');
+
+    if (remaining <= 0) {
+        // Paid in full or has credit
+        guidanceContent.classList.add('hidden');
+
+        if (remaining < 0) {
+            // Credit balance
+            creditBalanceMsg.classList.remove('hidden');
+            paidInFullMsg.classList.add('hidden');
+            document.getElementById('credit-amount').textContent = formatCurrency(Math.abs(remaining));
+        } else {
+            // Exactly zero - paid in full
+            paidInFullMsg.classList.remove('hidden');
+            creditBalanceMsg.classList.add('hidden');
+        }
+    } else {
+        // Still owes money
+        guidanceContent.classList.remove('hidden');
+        paidInFullMsg.classList.add('hidden');
+        creditBalanceMsg.classList.add('hidden');
+
+        document.getElementById('standard-monthly').textContent = formatCurrency(data.current_year.standard_monthly);
+        document.getElementById('suggested-monthly').textContent = formatCurrency(data.current_year.suggested_monthly);
+
+        const monthsRemaining = data.current_year.months_remaining;
+        const monthsEl = document.getElementById('months-remaining');
+
+        if (monthsRemaining <= 1) {
+            // December or past year end
+            monthsEl.textContent = `Remaining balance: ${formatCurrency(remaining)} due by Dec 31`;
+        } else {
+            monthsEl.textContent = monthsRemaining;
+        }
+    }
+
+    // ==========================================================================
+    // Recent Payments
+    // ==========================================================================
+    const paymentsBody = document.getElementById('recent-payments-body');
+    const noPaymentsMsg = document.getElementById('no-payments-message');
+    const viewHistoryBtn = document.getElementById('view-full-history-btn');
+
+    if (data.recent_payments && data.recent_payments.length > 0) {
+        paymentsBody.innerHTML = data.recent_payments.map(p => `
+            <tr>
+                <td>${p.date}</td>
+                <td>${formatCurrency(p.amount)}</td>
+            </tr>
+        `).join('');
+        noPaymentsMsg.classList.add('hidden');
+        viewHistoryBtn.classList.remove('hidden');
+    } else {
+        paymentsBody.innerHTML = '';
+        noPaymentsMsg.classList.remove('hidden');
+        viewHistoryBtn.classList.add('hidden');
+    }
+}
+
+// Full payment history modal handler
+async function loadFullPaymentHistory(unit) {
+    try {
+        const response = await apiRequest(`/statement/${unit}/payments`);
+        if (!response.ok) {
+            console.error('Failed to load payment history');
+            return;
+        }
+
+        const data = await response.json();
+
+        // Create or show modal with full history
+        let modal = document.getElementById('payment-history-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'payment-history-modal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content modal-medium">
+                    <h2>Payment History - Unit <span id="history-unit"></span></h2>
+                    <button class="close-btn" id="close-history-btn">&times;</button>
+                    <table class="compact">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Year</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-payments-body"></tbody>
+                    </table>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Add close handler
+            document.getElementById('close-history-btn').addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+        }
+
+        document.getElementById('history-unit').textContent = unit;
+
+        const historyBody = document.getElementById('history-payments-body');
+        if (data.payments && data.payments.length > 0) {
+            historyBody.innerHTML = data.payments.map(p => `
+                <tr>
+                    <td>${p.date}</td>
+                    <td>${p.year || ''}</td>
+                    <td>${formatCurrency(p.amount)}</td>
+                </tr>
+            `).join('');
+        } else {
+            historyBody.innerHTML = '<tr><td colspan="3">No payment history found.</td></tr>';
+        }
+
+        modal.classList.remove('hidden');
+    } catch (e) {
+        console.error('Failed to load payment history:', e);
+    }
 }

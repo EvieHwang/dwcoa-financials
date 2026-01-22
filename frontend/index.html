@@ -46,6 +46,21 @@
                 <span class="spacer"></span>
                 <span id="last-updated"></span>
             </div>
+            <div class="unit-selector-row">
+                <label for="unit-selector">My Unit:</label>
+                <select id="unit-selector">
+                    <option value="">Select your unit...</option>
+                    <option value="101">Unit 101</option>
+                    <option value="102">Unit 102</option>
+                    <option value="103">Unit 103</option>
+                    <option value="201">Unit 201</option>
+                    <option value="202">Unit 202</option>
+                    <option value="203">Unit 203</option>
+                    <option value="301">Unit 301</option>
+                    <option value="302">Unit 302</option>
+                    <option value="303">Unit 303</option>
+                </select>
+            </div>
         </header>
 
         <!-- Loading Overlay (shown while fetching dashboard data) -->
@@ -85,23 +100,57 @@
             <!-- Account Balances -->
             <section id="accounts-section">
                 <h2>Account Balances</h2>
-                <div class="accounts-row">
-                    <div class="account-card">
-                        <div class="name">Checking</div>
-                        <div class="balance" id="balance-checking">$0.00</div>
+                <div class="accounts-layout">
+                    <table class="cash-position-table">
+                        <thead>
+                            <tr>
+                                <th>Account</th>
+                                <th>Starting</th>
+                                <th>Current</th>
+                                <th>Change</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accounts-table-body">
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td>Total Cash</td>
+                                <td id="total-starting">$0.00</td>
+                                <td id="total-current">$0.00</td>
+                                <td id="total-change">$0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="account-summary-box">
+                        <h3>Reserve Fund Goal</h3>
+                        <div class="summary-row">
+                            <span>Goal:</span>
+                            <span id="reserve-goal">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Actual:</span>
+                            <span id="reserve-actual-change">$0.00</span>
+                        </div>
+                        <div class="summary-row remaining">
+                            <span>Difference:</span>
+                            <span id="reserve-difference">$0.00</span>
+                        </div>
                     </div>
-                    <div class="account-card">
-                        <div class="name">Savings</div>
-                        <div class="balance" id="balance-savings">$0.00</div>
+                    <div class="account-summary-box">
+                        <h3>Net Income</h3>
+                        <div class="summary-row">
+                            <span>Income:</span>
+                            <span id="net-income-value">$0.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Expenses:</span>
+                            <span id="net-expenses-value">$0.00</span>
+                        </div>
+                        <div class="summary-row remaining">
+                            <span>Net:</span>
+                            <span id="net-total">$0.00</span>
+                        </div>
                     </div>
-                    <div class="account-card">
-                        <div class="name">Reserve Fund</div>
-                        <div class="balance" id="balance-reserve">$0.00</div>
-                    </div>
-                </div>
-                <div class="total-row">
-                    <strong>Total Cash:</strong>
-                    <span id="total-cash"></span>
                 </div>
             </section>
 
@@ -124,19 +173,22 @@
             <section id="income-section">
                 <h2>Income & Dues</h2>
                 <div class="income-grid">
-                    <div class="income-summary">
-                        <div class="summary-row">
-                            <span>Budget (YTD):</span>
-                            <span id="dues-budget"></span>
+                    <div class="income-summary-column">
+                        <div class="income-summary">
+                            <div class="summary-row">
+                                <span>Budget (YTD):</span>
+                                <span id="dues-budget"></span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Actual:</span>
+                                <span id="dues-actual"></span>
+                            </div>
+                            <div class="summary-row remaining">
+                                <span>Remaining:</span>
+                                <span id="dues-remaining"></span>
+                            </div>
                         </div>
-                        <div class="summary-row">
-                            <span>Actual:</span>
-                            <span id="dues-actual"></span>
-                        </div>
-                        <div class="summary-row remaining">
-                            <span>Remaining:</span>
-                            <span id="dues-remaining"></span>
-                        </div>
+                        <p class="section-note">*Past due balances are not included in the current year's operating budget.</p>
                     </div>
                     <table id="dues-table" class="dues-table compact">
                         <thead>
@@ -151,6 +203,106 @@
                         </thead>
                         <tbody></tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- My Account (Unit Statement) -->
+            <section id="my-account-section" class="hidden">
+                <h2>My Account</h2>
+                <div id="my-account-notice" class="notice hidden"></div>
+                <div class="my-account-grid">
+                    <!-- Prior Year Summary -->
+                    <div class="statement-card" id="prior-year-card">
+                        <h3>Last Year (<span id="prior-year-label">2025</span>)</h3>
+                        <div id="prior-year-content">
+                            <div class="summary-row">
+                                <span>Annual Dues Budgeted:</span>
+                                <span id="prior-budgeted">$0.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Total Paid:</span>
+                                <span id="prior-paid">$0.00</span>
+                            </div>
+                            <div class="summary-row remaining">
+                                <span>Balance Carried Forward:</span>
+                                <span id="prior-carryover">$0.00</span>
+                            </div>
+                        </div>
+                        <div id="prior-year-no-data" class="no-data hidden">
+                            No data available for this year.
+                        </div>
+                    </div>
+
+                    <!-- Current Year Summary -->
+                    <div class="statement-card" id="current-year-card">
+                        <h3>Current Year (<span id="current-year-label">2026</span>)</h3>
+                        <div id="current-year-content">
+                            <div class="summary-row">
+                                <span>Carryover Balance:</span>
+                                <span id="current-carryover">$0.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Annual Dues:</span>
+                                <span id="current-annual-dues">$0.00</span>
+                            </div>
+                            <div class="summary-row subtotal">
+                                <span>Total Due:</span>
+                                <span id="current-total-due">$0.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Paid YTD:</span>
+                                <span id="current-paid-ytd">$0.00</span>
+                            </div>
+                            <div class="summary-row remaining">
+                                <span>Remaining Balance:</span>
+                                <span id="current-remaining">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Guidance -->
+                    <div class="statement-card" id="payment-guidance-card">
+                        <h3>Payment Guidance</h3>
+                        <div id="payment-guidance-content">
+                            <div class="summary-row">
+                                <span>Standard Monthly:</span>
+                                <span id="standard-monthly">$0.00</span>
+                            </div>
+                            <div class="summary-row highlight">
+                                <span>Suggested Monthly:</span>
+                                <span id="suggested-monthly">$0.00</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Months Remaining:</span>
+                                <span id="months-remaining">12</span>
+                            </div>
+                        </div>
+                        <div id="paid-in-full-message" class="paid-message hidden">
+                            ✓ Paid in full for this year
+                        </div>
+                        <div id="credit-balance-message" class="credit-message hidden">
+                            Credit balance: <span id="credit-amount">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Payments -->
+                <div class="recent-payments-section">
+                    <h3>Recent Payments</h3>
+                    <table id="recent-payments-table" class="compact">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-payments-body">
+                        </tbody>
+                    </table>
+                    <div id="no-payments-message" class="no-data hidden">
+                        No payments recorded for this year.
+                    </div>
+                    <button id="view-full-history-btn" class="btn-secondary hidden">View Full Payment History</button>
                 </div>
             </section>
 
@@ -173,7 +325,7 @@
                                 <span id="expense-remaining"></span>
                             </div>
                         </div>
-                        <p class="section-note">*Reserve Contribution is funded through internal transfers with no outgoing expense. See Reserve Fund Activity section below for details.</p>
+                        <p class="section-note">*Reserve Contribution is funded through internal transfers with no outgoing expense.</p>
                     </div>
                     <table id="expense-table" class="budget-table compact">
                         <thead>
@@ -189,43 +341,9 @@
                 </div>
             </section>
 
-            <!-- Reserve Fund Activity -->
-            <section id="reserve-section">
-                <h2>Reserve Fund Activity</h2>
-                <div class="reserve-summary-row">
-                    <div class="reserve-summary-box">
-                        <div class="summary-label">Budgeted Contribution</div>
-                        <div class="summary-value" id="reserve-budget">$0.00</div>
-                    </div>
-                    <div class="reserve-summary-box">
-                        <div class="summary-label">Actual Net Change</div>
-                        <div class="summary-value" id="reserve-actual">$0.00</div>
-                    </div>
-                    <div class="reserve-summary-box">
-                        <div class="summary-label">Remaining</div>
-                        <div class="summary-value" id="reserve-remaining">$0.00</div>
-                    </div>
-                </div>
-                <div id="reserve-table"></div>
-            </section>
-
             <!-- Transaction Viewer -->
             <section id="transactions-section">
                 <h2>Transaction History</h2>
-                <div class="reserve-summary-row">
-                    <div class="reserve-summary-box">
-                        <div class="summary-label">Checking</div>
-                        <div class="summary-value" id="txn-balance-checking">$0.00</div>
-                    </div>
-                    <div class="reserve-summary-box">
-                        <div class="summary-label">Savings</div>
-                        <div class="summary-value" id="txn-balance-savings">$0.00</div>
-                    </div>
-                    <div class="reserve-summary-box">
-                        <div class="summary-label">Reserve Fund</div>
-                        <div class="summary-value" id="txn-balance-reserve">$0.00</div>
-                    </div>
-                </div>
                 <div class="transactions-controls">
                     <button id="export-transactions-btn" class="btn-secondary">Export CSV</button>
                 </div>
