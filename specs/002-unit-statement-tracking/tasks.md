@@ -11,11 +11,11 @@
 
 | Phase | Tasks | Status |
 |-------|-------|--------|
-| Phase 1: Seed Data | 1 | Pending |
-| Phase 2: Backend Statement API | 6 | Pending |
-| Phase 3: Frontend UI | 6 | Pending |
-| Phase 4: Integration & Polish | 4 | Pending |
-| **Total** | **17** | |
+| Phase 1: Seed Data | 1 | Complete |
+| Phase 2: Backend Statement API | 6 | Complete |
+| Phase 3: Frontend UI | 6 | Complete |
+| Phase 4: Integration & Polish | 4 | Complete |
+| **Total** | **17** | **Complete** |
 
 ---
 
@@ -71,8 +71,8 @@
 
 ### Unit Selector
 
-- [ ] T008 [US1] Add unit selector dropdown HTML to `frontend/index.html` in the header/controls area, with all 9 unit options
-- [ ] T009 [US1] Add unit selector JavaScript to `frontend/app.js`:
+- [x] T008 [US1] Add unit selector dropdown HTML to `frontend/index.html` in the header/controls area, with all 9 unit options
+- [x] T009 [US1] Add unit selector JavaScript to `frontend/app.js`:
   - Populate dropdown
   - Save selection to `localStorage.setItem('selectedUnit', ...)`
   - Restore selection on page load
@@ -80,7 +80,7 @@
 
 ### My Account Section Structure
 
-- [ ] T010 [US1] Add "My Account" section HTML to `frontend/index.html` below Income & Dues section with:
+- [x] T010 [US1] Add "My Account" section HTML to `frontend/index.html` below Income & Dues section with:
   - Section container with id `my-account-section`
   - Prior year summary card placeholder
   - Current year summary card placeholder
@@ -89,17 +89,17 @@
 
 ### Statement Rendering
 
-- [ ] T011 [US2][US3] Add `renderMyAccount(data)` function to `app.js` to populate:
+- [x] T011 [US2][US3] Add `renderMyAccount(data)` function to `app.js` to populate:
   - Prior year: annual dues budgeted, total paid, balance carried forward
   - Current year: carryover, annual dues, total due, paid YTD, remaining balance
   - Payment guidance: standard monthly, suggested monthly, months remaining
   - Recent payments table
 
-- [ ] T012 [US1] Add `loadStatement(unit)` function to `app.js` to fetch from `/api/statement/{unit}` and call `renderMyAccount()`
+- [x] T012 [US1] Add `loadStatement(unit)` function to `app.js` to fetch from `/api/statement/{unit}` and call `renderMyAccount()`
 
 ### Styling
 
-- [ ] T013 [P] [US1] Add My Account section CSS to `frontend/styles.css`:
+- [x] T013 [P] [US1] Add My Account section CSS to `frontend/styles.css`:
   - Card layout matching existing dashboard style
   - Highlight colors for key numbers (remaining balance, suggested monthly)
   - Color coding: green for paid/credit, amber for on-track, red for behind
@@ -113,13 +113,13 @@
 
 **Objective**: Handle edge cases and finalize the feature
 
-- [ ] T014 [US2] Add handling for "no prior year data" state - display "No data available for [year]" message in prior year section
-- [ ] T015 [US3] Add handling for unlocked budget state - display "Budget for [year] is pending approval. Amounts shown are preliminary." notice
-- [ ] T016 [US4] Add edge case handling in payment guidance:
+- [x] T014 [US2] Add handling for "no prior year data" state - display "No data available for [year]" message in prior year section
+- [x] T015 [US3] Add handling for unlocked budget state - display "Budget for [year] is pending approval. Amounts shown are preliminary." notice
+- [x] T016 [US4] Add edge case handling in payment guidance:
   - If `remaining_balance <= 0`: show "Paid in full" or "Credit balance: $X"
   - If December: show "Remaining balance: $X due by Dec 31"
   - Credit display format: "($150.00) credit"
-- [ ] T017 [US5] Add "View full payment history" link/button that calls `/api/statement/{unit}/payments` and displays in modal or expanded section
+- [x] T017 [US5] Add "View full payment history" link/button that calls `/api/statement/{unit}/payments` and displays in modal or expanded section
 
 **Dependencies**: T011 must complete before T014-T017
 

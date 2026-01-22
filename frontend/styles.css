@@ -324,73 +324,6 @@ section h2 {
     font-weight: 600;
 }
 
-/* Reserve Fund Activity Section */
-#reserve-section {
-    margin-top: 2rem;
-}
-
-.reserve-summary {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-}
-
-.reserve-summary .net-change {
-    font-weight: 600;
-    font-size: 1.25rem;
-}
-
-.reserve-summary .net-change.positive {
-    color: var(--success-color);
-}
-
-.reserve-summary .net-change.negative {
-    color: var(--danger-color);
-}
-
-#reserve-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 1rem;
-}
-
-#reserve-table th,
-#reserve-table td {
-    padding: 0.5rem 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-}
-
-#reserve-table th {
-    background: var(--bg-color);
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    color: var(--text-muted);
-}
-
-#reserve-table th[data-sort]:hover {
-    background: var(--border-color);
-}
-
-#reserve-table td.amount {
-    text-align: right;
-    font-family: 'Monaco', 'Menlo', monospace;
-}
-
-#reserve-table .uncategorized {
-    color: var(--text-muted);
-    font-style: italic;
-}
-
-#reserve-table .empty-message {
-    text-align: center;
-    color: var(--text-muted);
-    padding: 2rem;
-}
-
 .pagination {
     display: flex;
     align-items: center;
@@ -474,7 +407,8 @@ section h2 {
     }
 }
 
-.expense-summary-column {
+.expense-summary-column,
+.income-summary-column {
     width: 250px;
     flex-shrink: 0;
 }
@@ -526,6 +460,18 @@ section h2 {
 .dues-table.compact th:nth-child(n+3),
 .dues-table.compact td:nth-child(n+3) {
     text-align: right;
+}
+
+/* Interest row in dues table */
+.dues-table .interest-row {
+    border-top: 1px solid var(--border-color);
+}
+
+/* Totals row in tables */
+.dues-table .totals-row,
+.budget-table .totals-row {
+    border-top: 2px solid var(--text-muted);
+    font-weight: 600;
 }
 
 /* Budget Tables */
@@ -1456,18 +1402,26 @@ footer a:hover {
     font-size: 0.875rem;
 }
 
+/* Account Balances Layout - 3 column side by side */
+.accounts-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
 /* Cash Position Table */
 .cash-position-table {
-    width: 100%;
     border-collapse: collapse;
-    margin-bottom: 1rem;
+    flex: 2;
+    min-width: 0;
 }
 
 .cash-position-table th,
 .cash-position-table td {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
     text-align: right;
     border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
 }
 
 .cash-position-table th:first-child,
@@ -1479,15 +1433,6 @@ footer a:hover {
     background: var(--bg-color);
     font-weight: 600;
     color: var(--text-muted);
-}
-
-.cash-position-table tfoot .total-row {
-    font-weight: 700;
-    background: var(--bg-color);
-}
-
-.cash-position-table tfoot .total-row td {
-    border-top: 2px solid var(--border-color);
 }
 
 /* Reserve Contribution Goal Row */
@@ -1513,4 +1458,255 @@ footer a:hover {
     margin-bottom: 0.75rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
+}
+
+/* Account Summary Boxes (Reserve Fund Goal + Net Income) */
+.account-summary-box {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 4px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.account-summary-box h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .accounts-layout {
+        flex-direction: column;
+    }
+
+    .cash-position-table {
+        width: 100%;
+    }
+
+    .account-summary-box {
+        width: 100%;
+    }
+}
+
+/* =============================================================================
+   Unit Selector (My Unit dropdown in header)
+   ============================================================================= */
+.unit-selector-row {
+    max-width: 1200px;
+    margin: 0.5rem auto 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.unit-selector-row label {
+    font-weight: 500;
+}
+
+.unit-selector-row select {
+    padding: 0.4rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+/* =============================================================================
+   My Account Section (Unit Statement)
+   ============================================================================= */
+#my-account-section {
+    border: 2px solid var(--primary-color);
+}
+
+#my-account-section h2 {
+    color: var(--primary-color);
+}
+
+/* Notice banner for unlocked budgets */
+#my-account-notice {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+    border: 1px solid #fcd34d;
+}
+
+/* Card grid layout */
+.my-account-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .my-account-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Statement cards */
+.statement-card {
+    background: var(--bg-color);
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.statement-card h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    text-align: center;
+}
+
+/* Summary row subtotal style (for "Total Due") */
+.summary-row.subtotal {
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.03);
+    margin: 0.25rem -0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+/* Highlight style for suggested monthly */
+.summary-row.highlight {
+    background: rgba(37, 99, 235, 0.1);
+    margin: 0.25rem -0.5rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.summary-row.highlight span:last-child {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* No data message */
+.no-data {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+}
+
+/* Paid in full message */
+.paid-message {
+    background: rgba(22, 163, 74, 0.1);
+    color: var(--success-color);
+    padding: 0.75rem;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Credit balance message */
+.credit-message {
+    background: rgba(22, 163, 74, 0.1);
+    color: var(--success-color);
+    padding: 0.75rem;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Recent Payments Section */
+.recent-payments-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.recent-payments-section h3 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-color);
+}
+
+#recent-payments-table {
+    width: 100%;
+    max-width: 400px;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+#recent-payments-table th,
+#recent-payments-table td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#recent-payments-table th:last-child,
+#recent-payments-table td:last-child {
+    text-align: right;
+}
+
+#recent-payments-table th {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+#view-full-history-btn {
+    margin-top: 0.75rem;
+}
+
+/* =============================================================================
+   Payment History Modal
+   ============================================================================= */
+.modal-medium {
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    text-align: left;
+}
+
+#payment-history-modal table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+#payment-history-modal th,
+#payment-history-modal td {
+    padding: 0.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#payment-history-modal th:last-child,
+#payment-history-modal td:last-child {
+    text-align: right;
+}
+
+#payment-history-modal th {
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-color);
+}
+
+/* Mobile responsiveness for My Account */
+@media (max-width: 768px) {
+    .unit-selector-row {
+        justify-content: center;
+    }
+
+    .my-account-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #recent-payments-table {
+        max-width: 100%;
+    }
 }
