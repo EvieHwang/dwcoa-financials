@@ -1,12 +1,10 @@
 # Data Model: Unit Statement Tracking
 
-## Schema Changes
+## Schema: No Changes Required
 
-### Modified Table: `unit_past_dues`
+The existing `unit_past_dues` table is sufficient. It stores **historical debt that predates the transaction data** (e.g., pre-2025 balances), not year-to-year carryovers.
 
-Add `auto_calculated` column to track whether the past due balance was auto-generated or manually set.
-
-**Current Schema**:
+**Existing Schema (unchanged)**:
 ```sql
 CREATE TABLE unit_past_dues (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,23 +16,7 @@ CREATE TABLE unit_past_dues (
 );
 ```
 
-**Migration**:
-```sql
-ALTER TABLE unit_past_dues ADD COLUMN auto_calculated INTEGER NOT NULL DEFAULT 0;
-```
-
-**Updated Schema**:
-```sql
-CREATE TABLE unit_past_dues (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    unit_number TEXT NOT NULL,
-    year INTEGER NOT NULL,
-    past_due_balance REAL NOT NULL DEFAULT 0,
-    auto_calculated INTEGER NOT NULL DEFAULT 0,  -- NEW: 0=manual, 1=auto-calculated
-    UNIQUE(unit_number, year),
-    FOREIGN KEY (unit_number) REFERENCES units(number)
-);
-```
+**Purpose**: Store historical debt from before transaction data exists. Year-to-year carryovers are calculated dynamically from transaction data.
 
 ---
 
@@ -146,47 +128,45 @@ standard_monthly = annual_dues / 12
 
 ---
 
-## Carryover Auto-Calculation Logic
+## Carryover Calculation Logic (Dynamic)
 
-**Trigger**: When `POST /api/budgets/lock/{year}` is called with `locked: true`
+**Calculated at query time** - not stored, not triggered by budget lock.
 
-**Formula per unit**:
+**Formula**:
 ```
-carryover = prior_year_budget × ownership_pct
-          + prior_year_past_due
-          - prior_year_paid
+carryover = prior_year_budgeted + prior_year_historical_debt - prior_year_paid
 ```
+
+Where:
+- `prior_year_budgeted` = Total Operating Budget (annual) × Ownership %
+- `prior_year_historical_debt` = `unit_past_dues.past_due_balance` for prior year (0 if none)
+- `prior_year_paid` = SUM(transactions.credit) WHERE category = 'Dues {unit}' AND year = prior_year
 
 **Pseudocode**:
 ```python
-def calculate_carryovers(year: int):
-    """Calculate and store carryover balances for all units when locking budget."""
+def get_carryover(unit_number: str, year: int) -> float:
+    """Calculate carryover dynamically from prior year data."""
     prior_year = year - 1
 
-    # Get total operating budget for prior year
+    # Get prior year budget
     prior_budget = get_total_operating_budget_annual(prior_year)
+    ownership_pct = get_unit(unit_number)['ownership_pct']
+    budgeted = prior_budget * ownership_pct
 
-    for unit in get_units():
-        # Skip if manual entry already exists for this year
-        existing = get_unit_past_due(unit.number, year)
-        if existing and not existing.auto_calculated:
-            continue  # Don't overwrite manual entry
+    # Get prior year historical debt (pre-transaction-data debt only)
+    historical_debt = get_unit_past_due(unit_number, prior_year)
 
-        # Calculate carryover
-        budgeted = prior_budget * unit.ownership_pct
-        past_due = get_unit_past_due(unit.number, prior_year)?.past_due_balance or 0
-        paid = get_unit_payments(unit.number, prior_year)
+    # Get prior year payments
+    paid = get_unit_payments_total(unit_number, prior_year)
 
-        carryover = budgeted + past_due - paid
-
-        # Store with auto_calculated flag
-        upsert_unit_past_due(
-            unit_number=unit.number,
-            year=year,
-            past_due_balance=carryover,
-            auto_calculated=True
-        )
+    return budgeted + historical_debt - paid
 ```
+
+**Why dynamic calculation?**
+- Always accurate - no stale data
+- Self-correcting if transactions are recategorized
+- Matches how `get_dues_status()` already works
+- No need to modify budget lock behavior
 
 ---
 
@@ -230,41 +210,37 @@ LIMIT 10;
 
 ---
 
-## Seed Data: 2025 Past Due Balances
+## Seed Data: 2025 Historical Debt
 
-The bank statements do not reveal existing past due balances from prior years. These historical balances must be manually seeded to establish the starting point for automatic carryover calculations.
+The `unit_past_dues` table stores **historical debt that predates the transaction data**. Bank statements only go back so far, so any debt from before that must be manually entered.
 
-**2025 Past Due Balances** (beginning of year, carried from pre-2025):
+**2025 Historical Debt** (debt from before transaction data begins):
 
-| Unit | Past Due Balance | Notes |
-|------|------------------|-------|
-| 101 | $3,981.85 | Manual seed |
-| 102 | $0.00 | Current |
-| 103 | $0.00 | Current |
-| 201 | $529.00 | Manual seed |
-| 202 | $0.00 | Current |
-| 203 | $371.40 | Manual seed |
-| 301 | $0.00 | Current |
-| 302 | $0.00 | Current |
-| 303 | $625.44 | Manual seed |
+| Unit | Historical Debt | Notes |
+|------|-----------------|-------|
+| 101 | $3,981.85 | Pre-2025 debt |
+| 102 | $0.00 | No historical debt |
+| 103 | $0.00 | No historical debt |
+| 201 | $529.00 | Pre-2025 debt |
+| 202 | $0.00 | No historical debt |
+| 203 | $371.40 | Pre-2025 debt |
+| 301 | $0.00 | No historical debt |
+| 302 | $0.00 | No historical debt |
+| 303 | $625.44 | Pre-2025 debt |
 
 **Seed SQL**:
 ```sql
--- Insert 2025 past due balances (manual seed data, auto_calculated=0)
-INSERT OR REPLACE INTO unit_past_dues (unit_number, year, past_due_balance, auto_calculated)
+-- Insert 2025 historical debt (debt predating transaction data)
+INSERT OR REPLACE INTO unit_past_dues (unit_number, year, past_due_balance)
 VALUES
-    ('101', 2025, 3981.85, 0),
-    ('102', 2025, 0.00, 0),
-    ('103', 2025, 0.00, 0),
-    ('201', 2025, 529.00, 0),
-    ('202', 2025, 0.00, 0),
-    ('203', 2025, 371.40, 0),
-    ('301', 2025, 0.00, 0),
-    ('302', 2025, 0.00, 0),
-    ('303', 2025, 625.44, 0);
+    ('101', 2025, 3981.85),
+    ('201', 2025, 529.00),
+    ('203', 2025, 371.40),
+    ('303', 2025, 625.44);
+-- Units with $0 historical debt don't need entries (defaults to 0)
 ```
 
-**Important**: These are marked `auto_calculated=0` (manual) so they won't be overwritten by any future carryover calculations.
+**Important**: This is a one-time seed. Future years don't need entries because carryovers are calculated dynamically from transaction data.
 
 ---
 

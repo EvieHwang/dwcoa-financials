@@ -98,27 +98,9 @@ A homeowner sees their recent payments to verify checks have been received and p
 
 ---
 
-### User Story 6 - Automatic Carryover on Budget Lock (Priority: P2)
-
-When the treasurer locks a new year's budget, the system automatically calculates and stores carryover balances for all units, saving manual calculation work.
-
-**Why this priority**: Reduces treasurer workload and eliminates calculation errors.
-
-**Independent Test**: Lock 2026 budget; all 9 units have carryover_balance auto-populated in unit_past_dues table.
-
-**Acceptance Scenarios**:
-
-1. **Given** admin locks 2026 budget, **When** lock completes, **Then** carryover balances are calculated for all 9 units
-2. **Given** Unit 201 had prior year budget $3,960, past_due $0, paid $3,800, **When** carryover calculates, **Then** carryover = $160
-3. **Given** a unit already has manually-entered past_due for the year, **When** lock runs, **Then** manual value is NOT overwritten
-4. **Given** admin views unit past dues, **When** displayed, **Then** can distinguish auto-calculated vs manually-set values
-
----
-
 ### Edge Cases
 
-- **New unit/owner mid-year**: Past due can be manually set to prorate their obligation; auto-calculation won't overwrite
-- **Budget unlocked after carryover calculated**: Carryover values remain (they were based on prior year's locked data)
+- **New unit/owner mid-year**: Historical debt can be manually set in unit_past_dues to reflect prorated obligation
 - **Year boundary in January**: Last year = previous calendar year, This year = current calendar year
 - **Exactly on track**: When suggested monthly equals standard monthly, display encouraging message
 - **All units paid in full**: Payment guidance section still renders but shows positive status
@@ -177,13 +159,11 @@ When the treasurer locks a new year's budget, the system automatically calculate
 - **FR-029**: MUST provide way to view full payment history (current and prior year)
 - **FR-030**: If no payments, MUST display "No payments recorded for [year]"
 
-**Automatic Carryover Calculation**
+**Carryover Calculation**
 
-- **FR-031**: When budget is locked for a new year, MUST automatically calculate carryover for all units
-- **FR-032**: Carryover formula: Prior year (Budget × ownership% + Past Due - Paid YTD)
-- **FR-033**: Calculated carryover MUST be stored in unit_past_dues table for the new year
-- **FR-034**: If unit_past_dues already has manually-entered value, MUST NOT overwrite (manual takes precedence)
-- **FR-035**: System MUST track whether past_due value was auto-calculated or manually set
+- **FR-031**: Carryover MUST be calculated dynamically: Prior year (Budgeted + Historical Debt - Paid)
+- **FR-032**: Historical debt (pre-transaction-data balances) stored in existing `unit_past_dues` table
+- **FR-033**: No schema changes required - existing table structure is sufficient
 
 ---
 
@@ -196,12 +176,11 @@ When the treasurer locks a new year's budget, the system automatically calculate
 - prior_year (object: year, annual_dues_budgeted, total_paid, balance_carried_forward)
 - recent_payments (array: date, amount)
 
-**Unit Past Dues** (existing table, modification needed)
+**Unit Past Dues** (existing table, NO changes needed)
 - id (integer, primary key)
 - unit_number (string, foreign key to units)
 - year (integer)
-- past_due_balance (decimal)
-- auto_calculated (boolean, NEW - distinguish auto vs manual)
+- past_due_balance (decimal) - stores historical debt predating transaction data only
 
 ---
 

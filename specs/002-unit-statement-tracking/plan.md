@@ -3,6 +3,7 @@
 **Feature**: Unit Statement Tracking ("My Account" Section)
 **Branch**: `feature/002-unit-statement-tracking`
 **Created**: 2026-01-21
+**Updated**: 2026-01-21 - Simplified (dynamic carryover calculation, no schema changes)
 
 ---
 
@@ -39,9 +40,8 @@
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     API Gateway                              │
-│  GET /api/statement/{unit}                                  │
-│  GET /api/statement/{unit}/payments                         │
-│  POST /api/budgets/lock/{year} (modified)                   │
+│  GET /api/statement/{unit}      (NEW)                       │
+│  GET /api/statement/{unit}/payments  (NEW)                  │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -49,16 +49,14 @@
 │                    Lambda Function                           │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │ routes/statement.py (NEW)                              │ │
-│  │  - get_statement(unit, year)                           │ │
-│  │  - get_payment_history(unit, year)                     │ │
-│  ├────────────────────────────────────────────────────────┤ │
-│  │ routes/budgets.py (MODIFIED)                           │ │
-│  │  - handle_lock() + carryover calculation               │ │
+│  │  - handle_get_statement(unit, year)                    │ │
+│  │  - handle_get_payment_history(unit, year)              │ │
+│  │  - Dynamic carryover calculation (not stored)          │ │
 │  ├────────────────────────────────────────────────────────┤ │
 │  │ services/database.py (EXTENDED)                        │ │
-│  │  - get_unit_statement_data()                           │ │
-│  │  - calculate_carryovers()                              │ │
-│  │  - upsert_unit_past_due() with auto_calculated flag    │ │
+│  │  - get_total_operating_budget_annual()                 │ │
+│  │  - get_unit_payments_total()                           │ │
+│  │  - get_unit_recent_payments()                          │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -66,13 +64,14 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                      SQLite (S3)                             │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │ unit_past_dues (MODIFIED)                              │ │
-│  │  + auto_calculated INTEGER DEFAULT 0                   │ │
+│  │ unit_past_dues (UNCHANGED - seed 2025 historical debt) │ │
 │  ├────────────────────────────────────────────────────────┤ │
 │  │ transactions, budgets, units, categories (unchanged)   │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Key Design Decision**: Carryovers are calculated dynamically from transaction data, not stored. This matches how `get_dues_status()` already works. The `unit_past_dues` table only stores historical debt predating the transaction data (2025 seed values).
 
 ---
 
@@ -80,7 +79,7 @@
 
 | Principle | How This Feature Complies |
 |-----------|--------------------------|
-| **Simplicity First** | Single new API endpoint, minimal schema change (1 column), vanilla JS frontend |
+| **Simplicity First** | Single new API endpoint, NO schema changes, vanilla JS frontend |
 | **Serverless When Dynamic** | Uses existing Lambda, no new infrastructure |
 | **Password-Protected Access** | Leverages existing JWT auth, no new auth required |
 | **Data Portability** | Statement data derived from existing transactions/budgets |
@@ -94,72 +93,69 @@
 
 | File | Purpose |
 |------|---------|
-| `backend/app/routes/statement.py` | Statement API endpoints |
+| `backend/app/routes/statement.py` | Statement API endpoints with dynamic carryover calc |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
-| `backend/sql/schema.sql` | Add `auto_calculated` column |
-| `backend/app/services/database.py` | Add statement query functions, carryover logic |
-| `backend/app/routes/budgets.py` | Call carryover calculation on lock |
+| `backend/app/services/database.py` | Add statement query helper functions |
 | `backend/app/main.py` | Add statement route handlers |
 | `frontend/index.html` | Add unit selector, My Account section |
 | `frontend/app.js` | Add statement fetch/render logic |
 | `frontend/styles.css` | Add My Account section styles |
 
+### NOT Modified
+
+| File | Why |
+|------|-----|
+| `backend/sql/schema.sql` | No schema changes needed |
+| `backend/app/routes/budgets.py` | Budget lock unchanged - remains simple flag |
+
 ---
 
 ## Implementation Phases
 
-### Phase 1: Database Schema (Low Risk)
+### Phase 1: Seed Data (Low Risk)
 
-**Objective**: Add `auto_calculated` flag to track carryover source
+**Objective**: Seed 2025 historical debt (pre-transaction-data balances)
 
 **Changes**:
-1. Update `schema.sql` with new column definition
-2. Create migration script to ALTER existing table
-3. Apply migration to production database
+1. Insert historical debt into `unit_past_dues` table:
+   - Unit 101: $3,981.85
+   - Unit 201: $529.00
+   - Unit 203: $371.40
+   - Unit 303: $625.44
 
-**Verification**: Query `unit_past_dues` shows new column
+**Verification**: Query `unit_past_dues WHERE year = 2025` shows seed values
 
 ---
 
 ### Phase 2: Backend - Statement Endpoint (Medium Risk)
 
-**Objective**: Create API to return statement data for a unit
+**Objective**: Create API to return statement data with dynamic carryover calculation
 
 **Changes**:
 1. Create `routes/statement.py` with:
-   - `handle_get_statement(unit, year)`
-   - `handle_get_payment_history(unit, year)`
+   - `handle_get_statement(unit, year)` - calculates carryover dynamically
+   - `handle_get_payment_history(unit, year)` - full payment list
 2. Add to `database.py`:
    - `get_total_operating_budget_annual(year)` - full year budget (not YTD)
-   - `get_unit_payments(unit, year)` - sum of dues payments
-   - `get_recent_payments(unit, year, limit)` - payment list
+   - `get_unit_payments_total(unit, year)` - sum of dues payments
+   - `get_unit_recent_payments(unit, year, limit)` - payment list
 3. Wire routes in `main.py`
+
+**Carryover Logic**:
+```python
+carryover = prior_budgeted + prior_historical_debt - prior_paid
+```
+Where `prior_historical_debt` comes from `unit_past_dues` (only for 2025 seed data).
 
 **Verification**: cURL requests return expected JSON structure
 
 ---
 
-### Phase 3: Backend - Carryover Calculation (Medium Risk)
-
-**Objective**: Auto-calculate carryovers when budget is locked
-
-**Changes**:
-1. Add to `database.py`:
-   - `calculate_all_carryovers(year)` - loop all units, calc & store
-   - `upsert_unit_past_due(unit, year, balance, auto_calculated)`
-2. Modify `budgets.py` `handle_lock()`:
-   - After setting lock, if `locked=True`, call carryover calculation
-   - Return count of carryovers calculated
-
-**Verification**: Lock budget, check `unit_past_dues` has entries with `auto_calculated=1`
-
----
-
-### Phase 4: Frontend - Unit Selector (Low Risk)
+### Phase 3: Frontend - Unit Selector (Low Risk)
 
 **Objective**: Add dropdown to select unit, persist in localStorage
 
@@ -174,7 +170,7 @@
 
 ---
 
-### Phase 5: Frontend - My Account Section (Medium Risk)
+### Phase 4: Frontend - My Account Section (Medium Risk)
 
 **Objective**: Display statement data in new dashboard section
 
@@ -192,7 +188,7 @@
 
 ---
 
-### Phase 6: Edge Cases & Polish (Low Risk)
+### Phase 5: Edge Cases & Polish (Low Risk)
 
 **Objective**: Handle special cases and improve UX
 
@@ -214,11 +210,9 @@
 
 ```python
 def test_carryover_calculation():
-    """Verify carryover formula: budget + past_due - paid"""
-    # Unit with $3960 budget, $0 past due, $3800 paid = $160 carryover
-
-def test_carryover_preserves_manual():
-    """Manual entries should not be overwritten"""
+    """Verify carryover formula: budget × ownership% + historical_debt - paid"""
+    # Unit 101 with $3981.85 historical debt, paid full 2025 dues
+    # should show carryover = $3981.85
 
 def test_statement_response_structure():
     """Verify all required fields present in API response"""
@@ -230,18 +224,18 @@ def test_months_remaining_calculation():
 ### Manual Testing
 
 1. **Happy path**: Select unit, see correct statement
-2. **Carryover accuracy**: Compare auto-calculated vs manual calculation for each unit
+2. **Carryover accuracy**: Verify Unit 101 shows $3981.85 historical debt in carryover
 3. **Credit balance**: Test unit that overpaid shows credit correctly
-4. **No prior data**: New unit with no history shows appropriate message
+4. **No prior data**: Unit with no 2025 transactions shows appropriate message
 5. **Budget not locked**: Preliminary warning displays
 
 ---
 
 ## Deployment Plan
 
-1. **Build**: `sam build`
-2. **Deploy**: `sam deploy`
-3. **Database migration**: Run ALTER TABLE (one-time)
+1. **Seed data**: Insert 2025 historical debt values
+2. **Build**: `sam build`
+3. **Deploy**: `sam deploy`
 4. **Smoke test**: Verify API responds, frontend loads
 5. **Functional test**: Test each user story
 
@@ -253,14 +247,14 @@ If issues are discovered:
 
 1. **Backend**: Revert to previous Lambda version via AWS Console
 2. **Frontend**: Revert S3 files from previous commit
-3. **Database**: `auto_calculated` column can remain (backward compatible)
+3. **Database**: Seed data can remain (no harm if feature reverted)
 
 ---
 
 ## Success Metrics
 
 - [ ] Statement loads in < 3 seconds
-- [ ] All 9 units have accurate carryover calculations
-- [ ] Manual verification matches auto-calculation
+- [ ] Carryover calculations include 2025 historical debt correctly
+- [ ] Dynamic calculation matches what treasurer would compute manually
 - [ ] No console errors in frontend
 - [ ] Works on mobile viewport

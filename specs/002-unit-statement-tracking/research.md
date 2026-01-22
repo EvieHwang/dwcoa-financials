@@ -23,26 +23,32 @@ This document captures technical decisions and rationale for the Unit Statement 
 
 ---
 
-### TD-2: Carryover Calculation Trigger
+### TD-2: Carryover Calculation Strategy
 
-**Decision**: Calculate carryovers inline during budget lock operation
+**Decision**: Calculate carryovers dynamically at query time (NOT stored)
 
 **Rationale**:
-- Budget lock is a low-frequency operation (once per year)
-- Existing `handle_lock()` function is natural extension point
-- Keeps related logic together (budget finalization = carryover calculation)
-- No need for separate async job or scheduled task
+- The existing dues system (`get_dues_status`) already calculates everything dynamically
+- Budget lock is just a flag to prevent accidental edits - not a data finalization step
+- Storing carryovers would duplicate data that can be computed from transactions
+- Dynamic calculation is always accurate and self-correcting
 
 **Implementation**:
 ```python
-def handle_lock(year: int, body: dict) -> dict:
-    locked = body.get('locked', True)
-    if locked:
-        # Calculate carryovers for all units when locking
-        calculate_carryovers(year)
-    lock_info = database.set_budget_lock(year, locked)
+def get_statement(unit, year):
+    prior_year = year - 1
+    # Calculate carryover dynamically from prior year data
+    prior_budgeted = get_total_operating_budget_annual(prior_year) * ownership_pct
+    prior_paid = get_unit_payments_total(unit, prior_year)
+    prior_past_due = get_unit_past_due(unit, prior_year)  # Historical debt only
+    carryover = prior_budgeted + prior_past_due - prior_paid
     ...
 ```
+
+**What `unit_past_dues` is for**:
+- Historical debt that predates the transaction data (e.g., pre-2025 balances)
+- NOT for year-to-year carryover (that's calculated dynamically)
+- The 2025 seed values are this kind of historical debt
 
 ---
 
@@ -71,19 +77,25 @@ ORDER BY t.post_date DESC
 
 ---
 
-### TD-4: Auto-Calculated Flag Implementation
+### TD-4: No Schema Changes Required
 
-**Decision**: Add `auto_calculated` column to `unit_past_dues` table
+**Decision**: No changes to `unit_past_dues` table needed
 
 **Rationale**:
-- Simple boolean flag is sufficient to distinguish auto vs manual
-- SQLite migration is straightforward (ALTER TABLE ADD COLUMN)
-- Default to 0 (false) preserves existing manual entries
-- Query pattern: `WHERE auto_calculated = 0` for manual overrides
+- Carryovers are calculated dynamically, not stored
+- `unit_past_dues` only stores historical pre-transaction-data debt
+- The 2025 seed values go here; future carryovers are computed
+- No `auto_calculated` column needed since we don't auto-populate
 
-**Schema Change**:
+**Existing Schema (unchanged)**:
 ```sql
-ALTER TABLE unit_past_dues ADD COLUMN auto_calculated INTEGER NOT NULL DEFAULT 0;
+CREATE TABLE unit_past_dues (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    unit_number TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    past_due_balance REAL NOT NULL DEFAULT 0,
+    UNIQUE(unit_number, year)
+);
 ```
 
 ---
@@ -145,9 +157,12 @@ const selectedUnit = localStorage.getItem('selectedUnit');
 | File | Integration |
 |------|-------------|
 | `backend/app/main.py` | Add routes for `/api/statement/{unit}` |
-| `backend/app/routes/budgets.py` | Modify `handle_lock()` to trigger carryover calculation |
-| `backend/app/services/database.py` | Add statement query functions |
-| `backend/sql/schema.sql` | Add `auto_calculated` column to `unit_past_dues` |
+| `backend/app/routes/statement.py` | **NEW** - Statement endpoint with dynamic carryover calc |
+| `backend/app/services/database.py` | Add statement query helper functions |
+
+**No changes needed to**:
+- `budgets.py` - Lock remains a simple flag
+- `schema.sql` - No schema changes required
 
 ### Frontend
 
