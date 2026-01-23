@@ -1350,16 +1350,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Unit selector for My Account section
     initUnitSelector();
 
-    // View full payment history button
-    const viewHistoryBtn = document.getElementById('view-full-history-btn');
-    if (viewHistoryBtn) {
-        viewHistoryBtn.addEventListener('click', () => {
-            if (selectedUnit) {
-                loadFullPaymentHistory(selectedUnit);
-            }
-        });
-    }
-
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', async () => {
             const patternInput = document.getElementById('new-rule-pattern');
@@ -1829,6 +1819,7 @@ function showRulesStatus(message, type) {
 // =============================================================================
 
 let selectedUnit = null;
+let paymentHistoryTable = null;
 
 function initUnitSelector() {
     const selector = document.getElementById('unit-selector');
@@ -1869,21 +1860,28 @@ async function loadStatement(unit) {
     }
 
     try {
-        const response = await apiRequest(`/statement/${unit}`);
-        if (!response.ok) {
-            const error = await response.json();
+        // Fetch both statement data and full payment history in parallel
+        const [statementResponse, paymentsResponse] = await Promise.all([
+            apiRequest(`/statement/${unit}`),
+            apiRequest(`/statement/${unit}/payments`)
+        ]);
+
+        if (!statementResponse.ok) {
+            const error = await statementResponse.json();
             console.error('Failed to load statement:', error);
             return;
         }
 
-        const data = await response.json();
-        renderMyAccount(data);
+        const statementData = await statementResponse.json();
+        const paymentsData = paymentsResponse.ok ? await paymentsResponse.json() : { payments: [] };
+
+        renderMyAccount(statementData, paymentsData.payments || []);
     } catch (e) {
         console.error('Failed to load statement:', e);
     }
 }
 
-function renderMyAccount(data) {
+function renderMyAccount(data, payments) {
     const section = document.getElementById('my-account-section');
     if (!section) return;
 
@@ -1904,73 +1902,59 @@ function renderMyAccount(data) {
     }
 
     // ==========================================================================
-    // Prior Year Summary
+    // Summary Table (2025 and 2026 rows)
     // ==========================================================================
-    const priorYearLabel = document.getElementById('prior-year-label');
-    const priorYearContent = document.getElementById('prior-year-content');
-    const priorYearNoData = document.getElementById('prior-year-no-data');
+    const summaryBody = document.getElementById('statement-summary-body');
+    let tableRows = '';
 
+    // 2025 row (prior year)
     if (data.prior_year) {
-        priorYearLabel.textContent = data.prior_year.year;
-        priorYearContent.classList.remove('hidden');
-        priorYearNoData.classList.add('hidden');
+        // Calculate starting balance for 2025: balance_carried_forward - budgeted + paid = historical debt
+        const startingBalance2025 = data.prior_year.balance_carried_forward - data.prior_year.annual_dues_budgeted + data.prior_year.total_paid;
+        const currentBalance2025 = data.prior_year.balance_carried_forward;
 
-        document.getElementById('prior-budgeted').textContent = formatCurrency(data.prior_year.annual_dues_budgeted);
-        document.getElementById('prior-paid').textContent = formatCurrency(data.prior_year.total_paid);
-
-        const priorCarryoverEl = document.getElementById('prior-carryover');
-        const carryover = data.prior_year.balance_carried_forward;
-        if (carryover < 0) {
-            // Credit balance
-            priorCarryoverEl.textContent = `(${formatCurrency(Math.abs(carryover))}) credit`;
-            priorCarryoverEl.className = 'positive';
-        } else if (carryover > 0) {
-            priorCarryoverEl.textContent = formatCurrency(carryover);
-            priorCarryoverEl.className = 'negative';
-        } else {
-            priorCarryoverEl.textContent = '$0.00';
-            priorCarryoverEl.className = '';
-        }
-    } else {
-        priorYearLabel.textContent = data.current_year.year - 1;
-        priorYearContent.classList.add('hidden');
-        priorYearNoData.classList.remove('hidden');
+        tableRows += `
+            <tr>
+                <td>${data.prior_year.year}</td>
+                <td>${formatCurrency(startingBalance2025)}</td>
+                <td>${formatCurrency(data.prior_year.annual_dues_budgeted)}</td>
+                <td>${formatCurrency(data.prior_year.total_paid)}</td>
+                <td class="${currentBalance2025 > 0 ? 'negative' : currentBalance2025 < 0 ? 'positive' : ''}">${formatCurrency(currentBalance2025)}</td>
+            </tr>
+        `;
     }
 
-    // ==========================================================================
-    // Current Year Summary
-    // ==========================================================================
-    const currentYearLabel = document.getElementById('current-year-label');
-    currentYearLabel.textContent = data.current_year.year;
+    // 2026 row (current year)
+    const startingBalance2026 = data.current_year.carryover_balance;
+    const currentBalance2026 = data.current_year.remaining_balance;
 
-    document.getElementById('current-carryover').textContent = formatCurrency(data.current_year.carryover_balance);
-    document.getElementById('current-annual-dues').textContent = formatCurrency(data.current_year.annual_dues);
-    document.getElementById('current-total-due').textContent = formatCurrency(data.current_year.total_due);
-    document.getElementById('current-paid-ytd').textContent = formatCurrency(data.current_year.paid_ytd);
+    tableRows += `
+        <tr>
+            <td>${data.current_year.year}</td>
+            <td>${formatCurrency(startingBalance2026)}</td>
+            <td>${formatCurrency(data.current_year.annual_dues)}</td>
+            <td>${formatCurrency(data.current_year.paid_ytd)}</td>
+            <td class="${currentBalance2026 > 0 ? 'negative' : currentBalance2026 < 0 ? 'positive' : ''}">${formatCurrency(currentBalance2026)}</td>
+        </tr>
+    `;
 
-    const remainingEl = document.getElementById('current-remaining');
-    const remaining = data.current_year.remaining_balance;
-    if (remaining < 0) {
-        remainingEl.textContent = `(${formatCurrency(Math.abs(remaining))}) credit`;
-        remainingEl.className = 'positive';
-    } else if (remaining > 0) {
-        remainingEl.textContent = formatCurrency(remaining);
-        remainingEl.className = 'negative';
-    } else {
-        remainingEl.textContent = '$0.00';
-        remainingEl.className = 'positive';
-    }
+    summaryBody.innerHTML = tableRows;
 
     // ==========================================================================
     // Payment Guidance
     // ==========================================================================
+    const remaining = data.current_year.remaining_balance;
     const paidInFullMsg = document.getElementById('paid-in-full-message');
     const creditBalanceMsg = document.getElementById('credit-balance-message');
-    const guidanceContent = document.getElementById('payment-guidance-content');
+    const monthsEl = document.getElementById('months-remaining');
+    const suggestedEl = document.getElementById('suggested-monthly');
+
+    // Get the guidance items (months remaining and suggested monthly containers)
+    const guidanceItems = document.querySelectorAll('#payment-guidance-section .guidance-item');
 
     if (remaining <= 0) {
-        // Paid in full or has credit
-        guidanceContent.classList.add('hidden');
+        // Hide the guidance items
+        guidanceItems.forEach(item => item.classList.add('hidden'));
 
         if (remaining < 0) {
             // Credit balance
@@ -1983,106 +1967,84 @@ function renderMyAccount(data) {
             creditBalanceMsg.classList.add('hidden');
         }
     } else {
-        // Still owes money
-        guidanceContent.classList.remove('hidden');
+        // Show the guidance items
+        guidanceItems.forEach(item => item.classList.remove('hidden'));
         paidInFullMsg.classList.add('hidden');
         creditBalanceMsg.classList.add('hidden');
 
-        document.getElementById('standard-monthly').textContent = formatCurrency(data.current_year.standard_monthly);
-        document.getElementById('suggested-monthly').textContent = formatCurrency(data.current_year.suggested_monthly);
-
         const monthsRemaining = data.current_year.months_remaining;
-        const monthsEl = document.getElementById('months-remaining');
 
         if (monthsRemaining <= 1) {
             // December or past year end
-            monthsEl.textContent = `Remaining balance: ${formatCurrency(remaining)} due by Dec 31`;
+            monthsEl.textContent = `Due by Dec 31`;
         } else {
             monthsEl.textContent = monthsRemaining;
         }
+
+        suggestedEl.textContent = formatCurrency(data.current_year.suggested_monthly);
     }
 
     // ==========================================================================
-    // Recent Payments
+    // Payment History (Tabulator)
     // ==========================================================================
-    const paymentsBody = document.getElementById('recent-payments-body');
-    const noPaymentsMsg = document.getElementById('no-payments-message');
-    const viewHistoryBtn = document.getElementById('view-full-history-btn');
-
-    if (data.recent_payments && data.recent_payments.length > 0) {
-        paymentsBody.innerHTML = data.recent_payments.map(p => `
-            <tr>
-                <td>${p.date}</td>
-                <td>${formatCurrency(p.amount)}</td>
-            </tr>
-        `).join('');
-        noPaymentsMsg.classList.add('hidden');
-        viewHistoryBtn.classList.remove('hidden');
-    } else {
-        paymentsBody.innerHTML = '';
-        noPaymentsMsg.classList.remove('hidden');
-        viewHistoryBtn.classList.add('hidden');
-    }
+    initPaymentHistoryTable(payments);
 }
 
-// Full payment history modal handler
-async function loadFullPaymentHistory(unit) {
-    try {
-        const response = await apiRequest(`/statement/${unit}/payments`);
-        if (!response.ok) {
-            console.error('Failed to load payment history');
-            return;
-        }
+// Payment History Tabulator
+function initPaymentHistoryTable(payments) {
+    const tableEl = document.getElementById('payment-history-table');
+    if (!tableEl) return;
 
-        const data = await response.json();
-
-        // Create or show modal with full history
-        let modal = document.getElementById('payment-history-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'payment-history-modal';
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content modal-medium">
-                    <h2>Payment History - Unit <span id="history-unit"></span></h2>
-                    <button class="close-btn" id="close-history-btn">&times;</button>
-                    <table class="compact">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Year</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-payments-body"></tbody>
-                    </table>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            // Add close handler
-            document.getElementById('close-history-btn').addEventListener('click', () => {
-                modal.classList.add('hidden');
-            });
-        }
-
-        document.getElementById('history-unit').textContent = unit;
-
-        const historyBody = document.getElementById('history-payments-body');
-        if (data.payments && data.payments.length > 0) {
-            historyBody.innerHTML = data.payments.map(p => `
-                <tr>
-                    <td>${p.date}</td>
-                    <td>${p.year || ''}</td>
-                    <td>${formatCurrency(p.amount)}</td>
-                </tr>
-            `).join('');
-        } else {
-            historyBody.innerHTML = '<tr><td colspan="3">No payment history found.</td></tr>';
-        }
-
-        modal.classList.remove('hidden');
-    } catch (e) {
-        console.error('Failed to load payment history:', e);
+    // Destroy existing table if it exists
+    if (paymentHistoryTable) {
+        paymentHistoryTable.destroy();
+        paymentHistoryTable = null;
     }
+
+    if (!payments || payments.length === 0) {
+        tableEl.innerHTML = '<p class="no-data">No payments recorded.</p>';
+        return;
+    }
+
+    if (typeof Tabulator === 'undefined') {
+        tableEl.innerHTML = '<p class="error">Error: Tabulator library not loaded.</p>';
+        return;
+    }
+
+    paymentHistoryTable = new Tabulator("#payment-history-table", {
+        data: payments,
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        pagination: true,
+        paginationSize: 10,
+        paginationSizeSelector: [10, 25, 50],
+        initialSort: [{ column: "date", dir: "desc" }],
+        placeholder: "No payments recorded",
+        columns: [
+            {
+                title: "Post Date",
+                field: "date",
+                sorter: function(a, b) {
+                    return a.localeCompare(b);
+                },
+                width: 120
+            },
+            {
+                title: "Description",
+                field: "description",
+                sorter: "string"
+            },
+            {
+                title: "Amount",
+                field: "amount",
+                sorter: "number",
+                hozAlign: "right",
+                formatter: function(cell) {
+                    const val = cell.getValue();
+                    return formatCurrency(val);
+                },
+                width: 120
+            }
+        ]
+    });
 }

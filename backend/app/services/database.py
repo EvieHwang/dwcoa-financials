@@ -692,4 +692,4 @@ def get_unit_recent_payments(unit_number: str, year: int, limit: int = 10) -> Li
     """
     category_name = f'Dues {unit_number}'
     rows = fetch_all(sql, (category_name, str(year), limit))
-    return [{'date': row['date'], 'amount': row['amount']} for row in rows]
+    return [{'date': row['date'], 'amount': row['amount'], 'description': row['description']} for row in rows]
