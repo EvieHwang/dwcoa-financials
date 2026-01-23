@@ -1541,55 +1541,57 @@ footer a:hover {
     border: 1px solid #fcd34d;
 }
 
-/* Card grid layout */
-.my-account-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+/* Statement Summary Table */
+.statement-table {
+    width: 100%;
+    border-collapse: collapse;
     margin-bottom: 1.5rem;
 }
 
-@media (max-width: 900px) {
-    .my-account-grid {
-        grid-template-columns: 1fr;
-    }
+.statement-table th,
+.statement-table td {
+    padding: 0.75rem 1rem;
+    text-align: right;
+    border-bottom: 1px solid var(--border-color);
 }
 
-/* Statement cards */
-.statement-card {
+.statement-table th:first-child,
+.statement-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+}
+
+.statement-table thead th {
     background: var(--bg-color);
-    padding: 1rem;
-    border-radius: 4px;
-}
-
-.statement-card h3 {
-    font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-muted);
-    margin-bottom: 0.75rem;
-    text-align: center;
 }
 
-/* Summary row subtotal style (for "Total Due") */
-.summary-row.subtotal {
-    font-weight: 500;
-    background: rgba(0, 0, 0, 0.03);
-    margin: 0.25rem -0.5rem;
-    padding: 0.5rem;
+/* Payment Guidance */
+.payment-guidance {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    padding: 1rem;
+    background: var(--bg-color);
     border-radius: 4px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
 }
 
-/* Highlight style for suggested monthly */
-.summary-row.highlight {
-    background: rgba(37, 99, 235, 0.1);
-    margin: 0.25rem -0.5rem;
-    padding: 0.5rem;
-    border-radius: 4px;
+.guidance-item {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
-.summary-row.highlight span:last-child {
+.guidance-item.highlight {
     font-weight: 600;
     color: var(--primary-color);
+}
+
+.guidance-label {
+    color: var(--text-muted);
 }
 
 /* No data message */
@@ -1604,9 +1606,8 @@ footer a:hover {
 .paid-message {
     background: rgba(22, 163, 74, 0.1);
     color: var(--success-color);
-    padding: 0.75rem;
+    padding: 0.5rem 1rem;
     border-radius: 4px;
-    text-align: center;
     font-weight: 500;
 }
 
@@ -1614,86 +1615,22 @@ footer a:hover {
 .credit-message {
     background: rgba(22, 163, 74, 0.1);
     color: var(--success-color);
-    padding: 0.75rem;
+    padding: 0.5rem 1rem;
     border-radius: 4px;
-    text-align: center;
     font-weight: 500;
 }
 
-/* Recent Payments Section */
-.recent-payments-section {
-    margin-top: 1rem;
+/* Payment History Section */
+.payment-history-section {
+    margin-top: 1.5rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-color);
 }
 
-.recent-payments-section h3 {
+.payment-history-section h3 {
     font-size: 1rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
     color: var(--text-color);
-}
-
-#recent-payments-table {
-    width: 100%;
-    max-width: 400px;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-
-#recent-payments-table th,
-#recent-payments-table td {
-    padding: 0.5rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-}
-
-#recent-payments-table th:last-child,
-#recent-payments-table td:last-child {
-    text-align: right;
-}
-
-#recent-payments-table th {
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-#view-full-history-btn {
-    margin-top: 0.75rem;
-}
-
-/* =============================================================================
-   Payment History Modal
-   ============================================================================= */
-.modal-medium {
-    max-width: 500px;
-    max-height: 80vh;
-    overflow-y: auto;
-    text-align: left;
-}
-
-#payment-history-modal table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-    margin-top: 1rem;
-}
-
-#payment-history-modal th,
-#payment-history-modal td {
-    padding: 0.5rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-}
-
-#payment-history-modal th:last-child,
-#payment-history-modal td:last-child {
-    text-align: right;
-}
-
-#payment-history-modal th {
-    font-weight: 600;
-    color: var(--text-muted);
-    background: var(--bg-color);
 }
 
 /* Mobile responsiveness for My Account */
@@ -1702,11 +1639,18 @@ footer a:hover {
         justify-content: center;
     }
 
-    .my-account-grid {
-        grid-template-columns: 1fr;
+    .statement-table {
+        font-size: 0.875rem;
     }
 
-    #recent-payments-table {
-        max-width: 100%;
+    .statement-table th,
+    .statement-table td {
+        padding: 0.5rem;
+    }
+
+    .payment-guidance {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
     }
 }

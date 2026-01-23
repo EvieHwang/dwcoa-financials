@@ -210,99 +210,43 @@
             <section id="my-account-section" class="hidden">
                 <h2>My Account</h2>
                 <div id="my-account-notice" class="notice hidden"></div>
-                <div class="my-account-grid">
-                    <!-- Prior Year Summary -->
-                    <div class="statement-card" id="prior-year-card">
-                        <h3>Last Year (<span id="prior-year-label">2025</span>)</h3>
-                        <div id="prior-year-content">
-                            <div class="summary-row">
-                                <span>Annual Dues Budgeted:</span>
-                                <span id="prior-budgeted">$0.00</span>
-                            </div>
-                            <div class="summary-row">
-                                <span>Total Paid:</span>
-                                <span id="prior-paid">$0.00</span>
-                            </div>
-                            <div class="summary-row remaining">
-                                <span>Balance Carried Forward:</span>
-                                <span id="prior-carryover">$0.00</span>
-                            </div>
-                        </div>
-                        <div id="prior-year-no-data" class="no-data hidden">
-                            No data available for this year.
-                        </div>
-                    </div>
 
-                    <!-- Current Year Summary -->
-                    <div class="statement-card" id="current-year-card">
-                        <h3>Current Year (<span id="current-year-label">2026</span>)</h3>
-                        <div id="current-year-content">
-                            <div class="summary-row">
-                                <span>Carryover Balance:</span>
-                                <span id="current-carryover">$0.00</span>
-                            </div>
-                            <div class="summary-row">
-                                <span>Annual Dues:</span>
-                                <span id="current-annual-dues">$0.00</span>
-                            </div>
-                            <div class="summary-row subtotal">
-                                <span>Total Due:</span>
-                                <span id="current-total-due">$0.00</span>
-                            </div>
-                            <div class="summary-row">
-                                <span>Paid YTD:</span>
-                                <span id="current-paid-ytd">$0.00</span>
-                            </div>
-                            <div class="summary-row remaining">
-                                <span>Remaining Balance:</span>
-                                <span id="current-remaining">$0.00</span>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Summary Table -->
+                <table id="statement-summary-table" class="statement-table">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Starting Balance</th>
+                            <th>Budgeted Dues</th>
+                            <th>Amount Paid</th>
+                            <th>Current Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statement-summary-body"></tbody>
+                </table>
 
-                    <!-- Payment Guidance -->
-                    <div class="statement-card" id="payment-guidance-card">
-                        <h3>Payment Guidance</h3>
-                        <div id="payment-guidance-content">
-                            <div class="summary-row">
-                                <span>Standard Monthly:</span>
-                                <span id="standard-monthly">$0.00</span>
-                            </div>
-                            <div class="summary-row highlight">
-                                <span>Suggested Monthly:</span>
-                                <span id="suggested-monthly">$0.00</span>
-                            </div>
-                            <div class="summary-row">
-                                <span>Months Remaining:</span>
-                                <span id="months-remaining">12</span>
-                            </div>
-                        </div>
-                        <div id="paid-in-full-message" class="paid-message hidden">
-                            ✓ Paid in full for this year
-                        </div>
-                        <div id="credit-balance-message" class="credit-message hidden">
-                            Credit balance: <span id="credit-amount">$0.00</span>
-                        </div>
+                <!-- Payment Guidance -->
+                <div id="payment-guidance-section" class="payment-guidance">
+                    <div class="guidance-item">
+                        <span class="guidance-label">Months Remaining:</span>
+                        <span id="months-remaining">12</span>
+                    </div>
+                    <div class="guidance-item highlight">
+                        <span class="guidance-label">Suggested Monthly Payment:</span>
+                        <span id="suggested-monthly">$0.00</span>
+                    </div>
+                    <div id="paid-in-full-message" class="paid-message hidden">
+                        Paid in full for this year
+                    </div>
+                    <div id="credit-balance-message" class="credit-message hidden">
+                        Credit balance: <span id="credit-amount">$0.00</span>
                     </div>
                 </div>
 
-                <!-- Recent Payments -->
-                <div class="recent-payments-section">
-                    <h3>Recent Payments</h3>
-                    <table id="recent-payments-table" class="compact">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-payments-body">
-                        </tbody>
-                    </table>
-                    <div id="no-payments-message" class="no-data hidden">
-                        No payments recorded for this year.
-                    </div>
-                    <button id="view-full-history-btn" class="btn-secondary hidden">View Full Payment History</button>
+                <!-- Payment History (Tabulator) -->
+                <div class="payment-history-section">
+                    <h3>Payment History</h3>
+                    <div id="payment-history-table"></div>
                 </div>
             </section>
 
