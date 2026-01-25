@@ -27,7 +27,6 @@ Each transaction stores:
 
 - The assigned category (if any)
 - A "needs review" flag indicating whether it requires human attention
-- Confidence score (100% for rule matches, 0% for no match)
 
 ---
 
@@ -73,7 +72,7 @@ A separate interface allows users to:
 
 - View all existing rules with their patterns and target categories
 - Edit patterns or change the target category
-- Delete rules that are no longer needed
+- Delete or disable rules that are no longer needed
 - Create new rules manually (without going through the review queue)
 
 ---
