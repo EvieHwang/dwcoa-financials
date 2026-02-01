@@ -503,7 +503,7 @@ function renderDashboard(data) {
         <tr>
             <td>${unit.unit}</td>
             <td>${formatPercent(unit.ownership_pct)}</td>
-            <td>${unit.past_due_balance > 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
+            <td class="${unit.past_due_balance < 0 ? 'positive' : ''}">${unit.past_due_balance !== 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
             <td>${formatCurrency(unit.annual_budget)}</td>
             <td>${formatCurrency(unit.paid_ytd)}</td>
             <td class="${displayRemaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(displayRemaining)}</td>
