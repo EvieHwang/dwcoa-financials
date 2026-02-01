@@ -1570,6 +1570,72 @@ footer a:hover {
 }
 
 /* =============================================================================
+   Payment Info Row (consolidated unit selector + payment guidance)
+   ============================================================================= */
+.payment-info-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-color);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.payment-info-row .info-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.payment-info-row .info-item label,
+.payment-info-row .info-label {
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.payment-info-row .info-item.highlight {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.payment-info-row .info-item.highlight .info-label {
+    color: var(--primary-color);
+}
+
+.payment-info-row select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--card-bg);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.payment-info-row select:hover {
+    border-color: var(--primary-color);
+}
+
+.payment-info-row select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+@media (max-width: 768px) {
+    .payment-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+}
+
+/* =============================================================================
    My Account Section (Unit Statement)
    ============================================================================= */
 #my-account-section {

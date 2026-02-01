@@ -113,15 +113,22 @@ def handle_get_statement(unit_number: str, year: Optional[int] = None) -> dict:
     # ==========================================================================
     # Payment Guidance
     # ==========================================================================
-    standard_monthly = annual_dues / 12 if annual_dues > 0 else 0.0
+    # Original monthly dues = annual budget / 12 (what they'd pay if perfectly on schedule)
+    original_monthly = annual_dues / 12 if annual_dues > 0 else 0.0
 
-    # Months remaining in the year (including current month)
-    months_remaining = 12 - current_month + 1
+    # Months remaining with 15th cutoff:
+    # Before the 15th: count current month (still time to pay)
+    # On or after the 15th: don't count current month (too late)
+    if today.day < 15:
+        months_remaining = 12 - current_month + 1
+    else:
+        months_remaining = 12 - current_month
+
+    # Ensure at least 1 month (for December after the 15th)
+    months_remaining = max(1, months_remaining)
 
     if remaining_balance <= 0:
         suggested_monthly = 0.0
-    elif months_remaining <= 0:
-        suggested_monthly = remaining_balance  # Past year end
     else:
         suggested_monthly = remaining_balance / months_remaining
 
@@ -133,7 +140,7 @@ def handle_get_statement(unit_number: str, year: Optional[int] = None) -> dict:
         'total_due': round(total_due, 2),
         'paid_ytd': round(paid_ytd, 2),
         'remaining_balance': round(remaining_balance, 2),
-        'standard_monthly': round(standard_monthly, 2),
+        'original_monthly': round(original_monthly, 2),
         'months_remaining': months_remaining,
         'suggested_monthly': round(suggested_monthly, 2)
     }

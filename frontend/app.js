@@ -1941,20 +1941,24 @@ function renderMyAccount(data, payments) {
     summaryBody.innerHTML = tableRows;
 
     // ==========================================================================
-    // Payment Guidance
+    // Payment Info (consolidated row)
     // ==========================================================================
     const remaining = data.current_year.remaining_balance;
     const paidInFullMsg = document.getElementById('paid-in-full-message');
     const creditBalanceMsg = document.getElementById('credit-balance-message');
     const monthsEl = document.getElementById('months-remaining');
+    const originalMonthlyEl = document.getElementById('original-monthly');
     const suggestedEl = document.getElementById('suggested-monthly');
 
-    // Get the guidance items (months remaining and suggested monthly containers)
-    const guidanceItems = document.querySelectorAll('#payment-guidance-section .guidance-item');
+    // Always show original monthly (annual / 12)
+    originalMonthlyEl.textContent = formatCurrency(data.current_year.original_monthly || 0);
+
+    // Get the info items that show payment amounts (not unit selector)
+    const paymentInfoItems = document.querySelectorAll('#payment-info-section .info-item:not(:first-child)');
 
     if (remaining <= 0) {
-        // Hide the guidance items
-        guidanceItems.forEach(item => item.classList.add('hidden'));
+        // Hide the payment guidance items (months, original, suggested)
+        paymentInfoItems.forEach(item => item.classList.add('hidden'));
 
         if (remaining < 0) {
             // Credit balance
@@ -1967,8 +1971,8 @@ function renderMyAccount(data, payments) {
             creditBalanceMsg.classList.add('hidden');
         }
     } else {
-        // Show the guidance items
-        guidanceItems.forEach(item => item.classList.remove('hidden'));
+        // Show the payment info items
+        paymentInfoItems.forEach(item => item.classList.remove('hidden'));
         paidInFullMsg.classList.add('hidden');
         creditBalanceMsg.classList.add('hidden');
 

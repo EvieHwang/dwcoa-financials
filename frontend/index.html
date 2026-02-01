@@ -233,22 +233,46 @@
             <!-- My Account (Unit Statement) -->
             <section id="my-account-section" class="hidden">
                 <h2>My Account</h2>
-                <div class="unit-selector-row">
-                    <label for="unit-selector">My Unit:</label>
-                    <select id="unit-selector">
-                        <option value="">Select your unit...</option>
-                        <option value="101">Unit 101</option>
-                        <option value="102">Unit 102</option>
-                        <option value="103">Unit 103</option>
-                        <option value="201">Unit 201</option>
-                        <option value="202">Unit 202</option>
-                        <option value="203">Unit 203</option>
-                        <option value="301">Unit 301</option>
-                        <option value="302">Unit 302</option>
-                        <option value="303">Unit 303</option>
-                    </select>
-                </div>
                 <div id="my-account-notice" class="notice hidden"></div>
+
+                <!-- Payment Info (consolidated row) -->
+                <div id="payment-info-section" class="payment-info-row">
+                    <div class="info-item">
+                        <label for="unit-selector">My Unit:</label>
+                        <select id="unit-selector">
+                            <option value="">Select...</option>
+                            <option value="101">101</option>
+                            <option value="102">102</option>
+                            <option value="103">103</option>
+                            <option value="201">201</option>
+                            <option value="202">202</option>
+                            <option value="203">203</option>
+                            <option value="301">301</option>
+                            <option value="302">302</option>
+                            <option value="303">303</option>
+                        </select>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Months Left:</span>
+                        <span id="months-remaining">11</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Original Monthly:</span>
+                        <span id="original-monthly">$0.00</span>
+                    </div>
+                    <div class="info-item highlight">
+                        <span class="info-label">Suggested Monthly:</span>
+                        <span id="suggested-monthly">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Status Messages (shown conditionally) -->
+                <div id="paid-in-full-message" class="paid-message hidden">
+                    Paid in full for this year
+                </div>
+                <div id="credit-balance-message" class="credit-message hidden">
+                    Credit balance: <span id="credit-amount">$0.00</span>
+                </div>
 
                 <!-- Summary Table -->
                 <table id="statement-summary-table" class="statement-table">
@@ -263,24 +287,6 @@
                     </thead>
                     <tbody id="statement-summary-body"></tbody>
                 </table>
-
-                <!-- Payment Guidance -->
-                <div id="payment-guidance-section" class="payment-guidance">
-                    <div class="guidance-item">
-                        <span class="guidance-label">Months Remaining:</span>
-                        <span id="months-remaining">12</span>
-                    </div>
-                    <div class="guidance-item highlight">
-                        <span class="guidance-label">Suggested Monthly Payment:</span>
-                        <span id="suggested-monthly">$0.00</span>
-                    </div>
-                    <div id="paid-in-full-message" class="paid-message hidden">
-                        Paid in full for this year
-                    </div>
-                    <div id="credit-balance-message" class="credit-message hidden">
-                        Credit balance: <span id="credit-amount">$0.00</span>
-                    </div>
-                </div>
 
                 <!-- Payment History (Tabulator) -->
                 <div class="payment-history-section">
