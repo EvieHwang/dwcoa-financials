@@ -1761,6 +1761,7 @@ function showRulesStatus(message, type) {
 
 let selectedUnit = null;
 let paymentHistoryTable = null;
+let statementRequestId = 0;  // Tracks current request to prevent race conditions
 
 function initUnitSelector() {
     const selector = document.getElementById('unit-selector');
@@ -1800,12 +1801,20 @@ async function loadStatement(unit) {
         return;
     }
 
+    // Track this request to handle race conditions
+    const requestId = ++statementRequestId;
+
     try {
         // Fetch both statement data and full payment history in parallel
         const [statementResponse, paymentsResponse] = await Promise.all([
             apiRequest(`/statement/${unit}`),
             apiRequest(`/statement/${unit}/payments`)
         ]);
+
+        // Check if this request is still current (user may have changed selection)
+        if (requestId !== statementRequestId) {
+            return;  // A newer request was made, ignore this stale result
+        }
 
         if (!statementResponse.ok) {
             const error = await statementResponse.json();
@@ -1818,7 +1827,10 @@ async function loadStatement(unit) {
 
         renderMyAccount(statementData, paymentsData.payments || []);
     } catch (e) {
-        console.error('Failed to load statement:', e);
+        // Only log error if this was the current request
+        if (requestId === statementRequestId) {
+            console.error('Failed to load statement:', e);
+        }
     }
 }
 
