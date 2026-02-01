@@ -328,6 +328,14 @@ section h2 {
     font-size: 1.25rem;
 }
 
+.section-date-indicator {
+    float: right;
+    font-style: italic;
+    font-weight: normal;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
 /* Account Balances */
 .accounts-row {
     display: grid;

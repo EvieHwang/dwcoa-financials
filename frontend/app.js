@@ -369,6 +369,13 @@ function renderDashboard(data) {
         }
     }
 
+    // Update section date indicators
+    const indicatorDate = new Date(snapshotDate + 'T00:00:00');
+    const indicatorFormatted = indicatorDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    document.querySelectorAll('.section-date-indicator').forEach(el => {
+        el.textContent = `As of ${indicatorFormatted}`;
+    });
+
     // User role - show badge and control admin visibility
     const roleEl = document.getElementById('user-role');
     roleEl.textContent = userRole === 'admin' ? 'Admin' : 'Homeowner';
