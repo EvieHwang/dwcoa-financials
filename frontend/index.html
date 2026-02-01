@@ -30,7 +30,10 @@
         <!-- Header -->
         <header>
             <div class="header-content">
-                <h1>DWCOA Financial Dashboard</h1>
+                <div class="header-title">
+                    <h1>DWCOA Financial Dashboard</h1>
+                    <span id="last-updated"></span>
+                </div>
                 <div class="header-meta">
                     <span id="user-role" class="role-badge"></span>
                     <button id="download-csv-btn" class="btn-header">CSV</button>
@@ -81,8 +84,6 @@
                     <input type="date" id="snapshot-date">
                     <button id="reset-today-btn" class="btn-secondary">Reset to Today</button>
                     <span id="snapshot-label"></span>
-                    <span class="spacer"></span>
-                    <span id="last-updated"></span>
                 </div>
 
                 <!-- Account Balances -->

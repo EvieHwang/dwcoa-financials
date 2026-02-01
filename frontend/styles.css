@@ -188,6 +188,21 @@ header {
     align-items: center;
 }
 
+.header-title {
+    display: flex;
+    flex-direction: column;
+}
+
+.header-title h1 {
+    margin: 0;
+}
+
+.header-title #last-updated {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-top: 0.25rem;
+}
+
 .header-meta {
     display: flex;
     align-items: center;
@@ -259,15 +274,6 @@ header {
     font-size: 0.85rem;
     opacity: 0.9;
     font-style: italic;
-}
-
-.date-picker-row .spacer {
-    flex: 1;
-}
-
-#last-updated {
-    font-size: 0.85rem;
-    opacity: 0.8;
 }
 
 /* Main */
@@ -1104,14 +1110,6 @@ footer a:hover {
         align-items: center;
         gap: 0.5rem;
         text-align: center;
-    }
-
-    .date-picker-row .spacer {
-        display: none;
-    }
-
-    #last-updated {
-        margin-top: 0.25rem;
     }
 
     /* Admin Controls - mobile layout */
