@@ -986,69 +986,6 @@ async function copyBudgets(fromYear, toYear) {
     }
 }
 
-// Unit management functions
-async function loadUnits(year) {
-    try {
-        const response = await apiRequest(`/units?year=${year}`);
-        const data = await response.json();
-        renderUnitsTable(data.units, year);
-    } catch (e) {
-        showBudgetStatus('Error loading units: ' + e.message, 'error');
-    }
-}
-
-function renderUnitsTable(units, year) {
-    const tbody = document.getElementById('units-edit-body');
-    if (!tbody) return;
-
-    // Update section title to show year
-    const titleEl = document.getElementById('units-section-title');
-    if (titleEl) {
-        titleEl.textContent = `Unit Past Due Balances (${year})`;
-    }
-
-    tbody.innerHTML = units.map(unit => `
-        <tr data-unit="${unit.number}">
-            <td>Unit ${unit.number}</td>
-            <td>
-                <input type="number" step="0.01" min="0" class="past-due-input"
-                       value="${unit.past_due_balance || 0}">
-            </td>
-            <td>
-                <button class="btn-small save-unit-btn">Save</button>
-            </td>
-        </tr>
-    `).join('');
-
-    // Add save handlers
-    tbody.querySelectorAll('.save-unit-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const row = btn.closest('tr');
-            const unitNumber = row.dataset.unit;
-            const input = row.querySelector('.past-due-input');
-            const pastDueBalance = parseFloat(input.value) || 0;
-
-            try {
-                const response = await apiRequest(`/units/${unitNumber}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ year: year, past_due_balance: pastDueBalance })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to update unit');
-                }
-
-                showBudgetStatus(`Unit ${unitNumber} past due for ${year} updated`, 'success');
-                // Reload dashboard to reflect changes
-                await loadDashboard();
-            } catch (e) {
-                showBudgetStatus('Error updating unit: ' + e.message, 'error');
-            }
-        });
-    });
-}
-
 function showBudgetStatus(message, type) {
     const statusEl = document.getElementById('budget-status');
     statusEl.textContent = message;
@@ -1087,7 +1024,6 @@ async function toggleBudgetLock(year, locked) {
 
         // Refresh UI
         await loadBudgets(year);
-        await loadUnits(year);
     } catch (e) {
         showBudgetStatus('Error: ' + e.message, 'error');
         // Restore checkbox state
@@ -1262,7 +1198,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         manageBudgetsBtn.addEventListener('click', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
-            await loadUnits(year);
             document.getElementById('budget-modal').classList.remove('hidden');
         });
 
@@ -1270,7 +1205,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         budgetYearEl.addEventListener('change', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
-            await loadUnits(year);
         });
     }
 
