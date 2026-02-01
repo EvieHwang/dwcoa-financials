@@ -11,66 +11,11 @@ from app.services import database
 CALCULATED_DUES_START_YEAR = 2025
 
 
-def calculate_ytd_budget(annual_amount: float, timing: str, as_of_date: date) -> float:
-    """Calculate YTD budget based on timing pattern.
+def get_total_operating_budget(year: int) -> float:
+    """Calculate total annual operating budget including Reserve Contribution.
 
-    Args:
-        annual_amount: Annual budget amount
-        timing: Timing pattern ('monthly', 'quarterly', 'annual')
-        as_of_date: Date to calculate as of
-
-    Returns:
-        YTD budget amount
-    """
-    month = as_of_date.month
-
-    if timing == 'monthly':
-        # Monthly: (annual / 12) * months elapsed
-        return (annual_amount / 12) * month
-
-    elif timing == 'quarterly':
-        # Quarterly: (annual / 4) * quarters through
-        # Q1 = months 1-3, Q2 = months 4-6, etc.
-        quarters_through = ((month - 1) // 3) + 1
-        return (annual_amount / 4) * quarters_through
-
-    elif timing == 'annual':
-        # Annual: full amount available all year (expense could hit any time)
-        return annual_amount
-
-    # Default to annual
-    return annual_amount
-
-
-def get_total_operating_budget(year: int, as_of_date: date) -> float:
-    """Calculate total operating budget including Reserve Contribution.
-
-    This is the sum of all Expense category budgets, prorated to YTD.
+    This is the sum of all Expense category annual budgets.
     Used for calculating unit dues in 2025+.
-
-    Args:
-        year: Budget year
-        as_of_date: Date to calculate YTD amount
-
-    Returns:
-        YTD total operating budget
-    """
-    sql = """
-        SELECT b.annual_amount, COALESCE(b.timing, c.timing) as timing
-        FROM budgets b
-        JOIN categories c ON b.category_id = c.id
-        WHERE b.year = ? AND c.type = 'Expense' AND c.active = 1
-    """
-    rows = database.fetch_all(sql, (year,))
-
-    total = 0.0
-    for row in rows:
-        total += calculate_ytd_budget(row['annual_amount'], row['timing'], as_of_date)
-    return total
-
-
-def get_total_annual_operating_budget(year: int) -> float:
-    """Get total annual operating budget (not YTD prorated).
 
     Args:
         year: Budget year
@@ -135,9 +80,11 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
     - Unit dues cover 99.9% (distributed by ownership percentages)
     - Interest income covers 0.1% (calculated, not manually entered)
 
+    Budget amounts are always the full annual amount (not prorated by month).
+
     Args:
         year: Budget year
-        as_of_date: Date to calculate YTD (defaults to today)
+        as_of_date: Date to calculate actuals through (defaults to today)
 
     Returns:
         Dict with income_summary, expense_summary, and category details.
@@ -154,48 +101,41 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
 
     # Process income
     income_categories = []
-    income_ytd_budget = 0
+    income_annual_budget = 0
     income_ytd_actual = 0
 
     # Process expenses
     expense_categories = []
-    expense_ytd_budget = 0
+    expense_annual_budget = 0
     expense_ytd_actual = 0
 
     # For 2025+, get operating budget upfront to calculate interest income
-    total_operating_budget_ytd = None
-    total_annual_operating_budget = None
+    total_operating_budget = None
     if year >= CALCULATED_DUES_START_YEAR:
-        total_operating_budget_ytd = get_total_operating_budget(year, as_of_date)
-        total_annual_operating_budget = get_total_annual_operating_budget(year)
+        total_operating_budget = get_total_operating_budget(year)
 
     for budget in budgets:
         cat_type = budget['category_type']
-        timing = budget.get('effective_timing', 'monthly')
         annual = budget['annual_amount'] or 0
         category_id = budget['category_id']
         category_name = budget['category_name']
 
         # For 2025+, Interest budget is calculated as 0.1% of operating budget
         if year >= CALCULATED_DUES_START_YEAR and category_name == 'Interest':
-            annual = total_annual_operating_budget * 0.001
-            timing = 'monthly'
+            annual = total_operating_budget * 0.001
 
-        ytd_budget = calculate_ytd_budget(annual, timing, as_of_date)
         ytd_actual = actuals.get(category_id, 0)
-        remaining = ytd_budget - ytd_actual
+        remaining = annual - ytd_actual
 
         # Skip categories with zero budget AND zero actual
-        if ytd_budget == 0 and ytd_actual == 0:
+        if annual == 0 and ytd_actual == 0:
             continue
 
         cat_data = {
             'id': category_id,
             'category': category_name,
             'type': cat_type,
-            'timing': timing,
-            'annual_amount': round(annual, 2),
-            'ytd_budget': round(ytd_budget, 2),
+            'annual_budget': round(annual, 2),
             'ytd_actual': round(ytd_actual, 2),
             'remaining': round(remaining, 2)
         }
@@ -205,32 +145,32 @@ def get_budget_summary(year: int, as_of_date: Optional[date] = None) -> dict:
             income_ytd_actual += ytd_actual
             # For 2025+, we calculate dues from operating budget, not from category budgets
             if year < CALCULATED_DUES_START_YEAR:
-                income_ytd_budget += ytd_budget
+                income_annual_budget += annual
         elif cat_type == 'Expense':
             expense_categories.append(cat_data)
-            expense_ytd_budget += ytd_budget
+            expense_annual_budget += annual
             expense_ytd_actual += ytd_actual
 
     # For 2025+, income budget equals operating budget (99.9% dues + 0.1% interest = 100%)
     calculated_income = False
     if year >= CALCULATED_DUES_START_YEAR:
         calculated_income = True
-        income_ytd_budget = total_operating_budget_ytd
+        income_annual_budget = total_operating_budget
 
     return {
         'year': year,
         'as_of_date': as_of_date.isoformat(),
         'income_summary': {
-            'ytd_budget': round(income_ytd_budget, 2),
+            'annual_budget': round(income_annual_budget, 2),
             'ytd_actual': round(income_ytd_actual, 2),
             'calculated': calculated_income,
-            'total_operating_budget': round(total_operating_budget_ytd, 2) if total_operating_budget_ytd else None,
+            'total_operating_budget': round(total_operating_budget, 2) if total_operating_budget else None,
             'categories': income_categories
         },
         'expense_summary': {
-            'ytd_budget': round(expense_ytd_budget, 2),
+            'annual_budget': round(expense_annual_budget, 2),
             'ytd_actual': round(expense_ytd_actual, 2),
-            'remaining': round(expense_ytd_budget - expense_ytd_actual, 2),
+            'remaining': round(expense_annual_budget - expense_ytd_actual, 2),
             'categories': expense_categories
         }
     }
@@ -369,7 +309,7 @@ def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dic
 
     # Get budget for Reserve Contribution category
     budget_sql = """
-        SELECT b.annual_amount, b.timing
+        SELECT b.annual_amount
         FROM budgets b
         JOIN categories c ON b.category_id = c.id
         WHERE c.name = 'Reserve Contribution'
@@ -378,8 +318,6 @@ def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dic
     budget_row = database.fetch_one(budget_sql, (year,))
 
     annual_budget = budget_row['annual_amount'] if budget_row else 0
-    timing = budget_row['timing'] if budget_row else 'monthly'
-    ytd_budget = calculate_ytd_budget(annual_budget, timing, as_of_date)
 
     # Get contributions IN to Reserve Fund
     contributions_sql = """
@@ -407,7 +345,7 @@ def get_reserve_fund_status(year: int, as_of_date: Optional[date] = None) -> dic
     net = contributions - expenses
 
     return {
-        'budget': round(ytd_budget, 2),
+        'budget': round(annual_budget, 2),
         'contributions': round(contributions, 2),
         'expenses': round(expenses, 2),
         'net': round(net, 2)

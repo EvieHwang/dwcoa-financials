@@ -60,13 +60,12 @@ def handle_create(body: dict) -> dict:
     # Insert category
     with database.transaction():
         database.execute("""
-            INSERT INTO categories (name, type, default_account, timing, active)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO categories (name, type, default_account, active)
+            VALUES (?, ?, ?, ?)
         """, (
             body['name'],
             body['type'],
             body.get('default_account'),
-            body.get('timing', 'monthly'),
             1 if body.get('active', True) else 0
         ))
 
@@ -122,10 +121,6 @@ def handle_update(category_id: int, body: dict) -> dict:
     if 'default_account' in body:
         updates.append("default_account = ?")
         params.append(body['default_account'])
-
-    if 'timing' in body:
-        updates.append("timing = ?")
-        params.append(body['timing'])
 
     if 'active' in body:
         updates.append("active = ?")
