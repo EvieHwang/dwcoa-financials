@@ -15,13 +15,6 @@ class CategoryType(Enum):
     INTERNAL = "Internal"
 
 
-class TimingPattern(Enum):
-    """Budget timing patterns."""
-    MONTHLY = "monthly"
-    QUARTERLY = "quarterly"
-    ANNUAL = "annual"
-
-
 @dataclass
 class Account:
     """Bank account."""
@@ -36,7 +29,6 @@ class Category:
     id: int
     name: str
     type: CategoryType
-    timing: TimingPattern
     default_account: Optional[str] = None
     active: bool = True
 
@@ -47,7 +39,6 @@ class Category:
             id=d['id'],
             name=d['name'],
             type=CategoryType(d['type']),
-            timing=TimingPattern(d['timing']),
             default_account=d.get('default_account'),
             active=bool(d.get('active', 1))
         )
@@ -107,11 +98,10 @@ class Budget:
     year: int
     category_id: int
     annual_amount: Decimal
-    timing: Optional[TimingPattern] = None
     # Computed fields for display
     category_name: Optional[str] = None
     category_type: Optional[str] = None
-    ytd_budget: Optional[Decimal] = None
+    annual_budget: Optional[Decimal] = None
     ytd_actual: Optional[Decimal] = None
     remaining: Optional[Decimal] = None
 

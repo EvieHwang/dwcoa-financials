@@ -305,7 +305,6 @@ def get_budgets(year: int) -> List[dict]:
             c.name as category_name,
             c.type as category_type,
             COALESCE(b.annual_amount, 0) as annual_amount,
-            COALESCE(b.timing, c.timing) as effective_timing,
             b.id as budget_id,
             ? as year
         FROM categories c

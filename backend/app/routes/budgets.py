@@ -44,7 +44,7 @@ def handle_upsert(body: dict) -> dict:
     """Create or update a budget entry.
 
     Args:
-        body: Budget data (year, category_id, annual_amount, timing)
+        body: Budget data (year, category_id, annual_amount)
 
     Returns:
         Response with budget entry
@@ -61,7 +61,6 @@ def handle_upsert(body: dict) -> dict:
     year = int(body['year'])
     category_id = int(body['category_id'])
     annual_amount = float(body['annual_amount'])
-    timing = body.get('timing')  # Optional override
 
     # Check if budget is locked
     if database.is_budget_locked(year):
@@ -83,17 +82,15 @@ def handle_upsert(body: dict) -> dict:
     # Upsert budget
     with database.transaction():
         database.execute("""
-            INSERT INTO budgets (year, category_id, annual_amount, timing)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO budgets (year, category_id, annual_amount)
+            VALUES (?, ?, ?)
             ON CONFLICT(year, category_id) DO UPDATE SET
-                annual_amount = excluded.annual_amount,
-                timing = excluded.timing
-        """, (year, category_id, annual_amount, timing))
+                annual_amount = excluded.annual_amount
+        """, (year, category_id, annual_amount))
 
     # Fetch the budget entry
     row = database.fetch_one("""
-        SELECT b.*, c.name as category_name, c.type as category_type,
-               COALESCE(b.timing, c.timing) as effective_timing
+        SELECT b.*, c.name as category_name, c.type as category_type
         FROM budgets b
         JOIN categories c ON b.category_id = c.id
         WHERE b.year = ? AND b.category_id = ?
@@ -155,8 +152,8 @@ def handle_copy(body: dict) -> dict:
     # Copy budgets
     with database.transaction():
         database.execute("""
-            INSERT OR REPLACE INTO budgets (year, category_id, annual_amount, timing)
-            SELECT ?, category_id, annual_amount, timing
+            INSERT OR REPLACE INTO budgets (year, category_id, annual_amount)
+            SELECT ?, category_id, annual_amount
             FROM budgets
             WHERE year = ?
         """, (to_year, from_year))

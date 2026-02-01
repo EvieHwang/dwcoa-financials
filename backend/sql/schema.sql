@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS categories (
     name TEXT NOT NULL UNIQUE,
     type TEXT NOT NULL CHECK (type IN ('Income', 'Expense', 'Transfer', 'Internal')),
     default_account TEXT CHECK (default_account IN ('Savings', 'Checking', 'Reserve Fund', 'Any', NULL)),
-    timing TEXT NOT NULL DEFAULT 'monthly' CHECK (timing IN ('monthly', 'quarterly', 'annual')),
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -43,7 +42,6 @@ CREATE TABLE IF NOT EXISTS budgets (
     year INTEGER NOT NULL,
     category_id INTEGER NOT NULL REFERENCES categories(id),
     annual_amount REAL NOT NULL DEFAULT 0,
-    timing TEXT CHECK (timing IN ('monthly', 'quarterly', 'annual', NULL)),
     UNIQUE(year, category_id)
 );
 
@@ -120,15 +118,14 @@ LEFT JOIN categories c ON t.category_id = c.id
 LEFT JOIN categories ac ON t.auto_category_id = ac.id
 ORDER BY t.post_date DESC;
 
--- View: Budget status with YTD calculations
+-- View: Budget status summary
 CREATE VIEW IF NOT EXISTS v_budget_summary AS
 SELECT
     b.year,
     c.id as category_id,
     c.name as category,
     c.type as category_type,
-    b.annual_amount,
-    COALESCE(b.timing, c.timing) as timing
+    b.annual_amount
 FROM budgets b
 JOIN categories c ON b.category_id = c.id
 WHERE c.active = 1;

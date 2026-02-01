@@ -124,7 +124,7 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
 
     # Income summary totals
     income = budget_summary['income_summary']
-    income_budget = income['ytd_budget']
+    income_budget = income['annual_budget']
     income_actual = income['ytd_actual']
     income_remaining = income_budget - income_actual
     # Invert for display: surplus positive (green), deficit negative (red)
@@ -132,7 +132,7 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
 
     # Summary box (like dashboard)
     summary_data = [
-        ['Budget (YTD):', format_currency(income_budget)],
+        ['Annual Budget:', format_currency(income_budget)],
         ['Actual:', format_currency(income_actual)],
         ['Remaining:', format_currency(display_income_remaining)]
     ]
@@ -148,13 +148,13 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
 
     # Find Interest from income categories
     interest_cat = next((c for c in income['categories'] if 'interest' in c['category'].lower()), None)
-    interest_budget = interest_cat['ytd_budget'] if interest_cat else 0
+    interest_budget = interest_cat['annual_budget'] if interest_cat else 0
     interest_actual = interest_cat['ytd_actual'] if interest_cat else 0
     interest_remaining = interest_budget - interest_actual
 
     # Calculate totals
     total_past_due = sum(u['past_due_balance'] for u in dues_data['units'])
-    total_budget = sum(u['ytd_budget'] for u in dues_data['units']) + interest_budget
+    total_budget = sum(u['annual_budget'] for u in dues_data['units']) + interest_budget
     total_actual = sum(u['paid_ytd'] for u in dues_data['units']) + interest_actual
     total_remaining = sum(u['outstanding'] for u in dues_data['units']) + interest_remaining
 
@@ -168,7 +168,7 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
             unit['unit'],
             f"{unit['ownership_pct']*100:.1f}%",
             past_due_display,
-            format_currency(unit['ytd_budget']),
+            format_currency(unit['annual_budget']),
             format_currency(unit['paid_ytd']),
             format_currency(display_remaining)
         ])
@@ -220,7 +220,7 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
 
     # Expense summary box
     expense_summary_data = [
-        ['Budget (YTD):', format_currency(expense['ytd_budget'])],
+        ['Annual Budget:', format_currency(expense['annual_budget'])],
         ['Actual:', format_currency(expense['ytd_actual'])],
         ['Remaining:', format_currency(expense['remaining'])]
     ]
@@ -239,7 +239,7 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
     for cat in expense['categories']:
         expense_data.append([
             cat['category'],
-            format_currency(cat['ytd_budget']),
+            format_currency(cat['annual_budget']),
             format_currency(cat['ytd_actual']),
             format_currency(cat['remaining'])
         ])
@@ -247,7 +247,7 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
     # Totals row
     expense_data.append([
         'Total',
-        format_currency(expense['ytd_budget']),
+        format_currency(expense['annual_budget']),
         format_currency(expense['ytd_actual']),
         format_currency(expense['remaining'])
     ])

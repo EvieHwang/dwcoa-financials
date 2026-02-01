@@ -64,19 +64,19 @@ function renderBudgetChart(data) {
     if (!ctx) return;
 
     // Calculate totals for income
-    // Use income_summary.ytd_budget (total operating budget) for the budget display
-    const incomeBudget = data.income_summary.ytd_budget;
+    // Use income_summary.annual_budget (total operating budget) for the budget display
+    const incomeBudget = data.income_summary.annual_budget;
     const incomeActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
 
     // Get expense totals
-    const expenseBudget = data.expense_summary.ytd_budget;
+    const expenseBudget = data.expense_summary.annual_budget;
     const expenseActual = data.expense_summary.ytd_actual;
 
     const chartData = {
         labels: ['Income & Dues', 'Operating Expenses'],
         datasets: [
             {
-                label: 'Budget (YTD)',
+                label: 'Annual Budget',
                 data: [incomeBudget, expenseBudget],
                 backgroundColor: CHART_COLORS.budget,
                 borderColor: CHART_COLORS.budgetBorder,
@@ -433,7 +433,7 @@ function renderDashboard(data) {
         const name = cat.category.toLowerCase();
         return name === 'reserve fund' || name === 'reserve contribution';
     });
-    const reserveGoal = reserveCategory ? reserveCategory.ytd_budget : 0;
+    const reserveGoal = reserveCategory ? reserveCategory.annual_budget : 0;
     const reserveDifference = reserveChange - reserveGoal;
 
     document.getElementById('reserve-goal').textContent = formatCurrency(reserveGoal);
@@ -464,13 +464,13 @@ function renderDashboard(data) {
     const interestCategory = data.income_summary.categories.find(cat =>
         cat.category.toLowerCase().includes('interest')
     );
-    const interestBudget = interestCategory ? interestCategory.ytd_budget : 0;
+    const interestBudget = interestCategory ? interestCategory.annual_budget : 0;
     const interestActual = interestCategory ? interestCategory.ytd_actual : 0;
     const interestRemaining = interestBudget - interestActual;
 
     // Total income = dues + interest
     const duesOnlyActual = data.dues_status.reduce((sum, u) => sum + u.paid_ytd, 0);
-    const incomeBudget = data.income_summary.ytd_budget;
+    const incomeBudget = data.income_summary.annual_budget;
     const incomeActualTotal = duesOnlyActual + interestActual;
     const incomeRemaining = incomeBudget - incomeActualTotal;
 
@@ -493,7 +493,7 @@ function renderDashboard(data) {
 
     let duesRows = data.dues_status.map(unit => {
         totalPastDue += unit.past_due_balance || 0;
-        totalBudget += unit.ytd_budget || 0;
+        totalBudget += unit.annual_budget || 0;
         totalActual += unit.paid_ytd || 0;
         totalRemaining += unit.outstanding || 0;
         // Remaining: negative outstanding = surplus (green), positive = deficit (red)
@@ -504,7 +504,7 @@ function renderDashboard(data) {
             <td>${unit.unit}</td>
             <td>${formatPercent(unit.ownership_pct)}</td>
             <td>${unit.past_due_balance > 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
-            <td>${formatCurrency(unit.ytd_budget)}</td>
+            <td>${formatCurrency(unit.annual_budget)}</td>
             <td>${formatCurrency(unit.paid_ytd)}</td>
             <td class="${displayRemaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(displayRemaining)}</td>
         </tr>
@@ -542,7 +542,7 @@ function renderDashboard(data) {
 
     // Expense summary
     const expense = data.expense_summary;
-    document.getElementById('expense-budget').textContent = formatCurrency(expense.ytd_budget);
+    document.getElementById('expense-budget').textContent = formatCurrency(expense.annual_budget);
     document.getElementById('expense-actual').textContent = formatCurrency(expense.ytd_actual);
     const expenseRemainingEl = document.getElementById('expense-remaining');
     expenseRemainingEl.textContent = formatCurrency(expense.remaining);
@@ -552,7 +552,7 @@ function renderDashboard(data) {
     let expenseRows = expense.categories.map(cat => `
         <tr>
             <td>${cat.category}</td>
-            <td>${formatCurrency(cat.ytd_budget)}</td>
+            <td>${formatCurrency(cat.annual_budget)}</td>
             <td>${formatCurrency(cat.ytd_actual)}</td>
             <td class="${cat.remaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(cat.remaining)}</td>
         </tr>
@@ -562,7 +562,7 @@ function renderDashboard(data) {
     expenseRows += `
         <tr class="totals-row">
             <td>Total</td>
-            <td>${formatCurrency(expense.ytd_budget)}</td>
+            <td>${formatCurrency(expense.annual_budget)}</td>
             <td>${formatCurrency(expense.ytd_actual)}</td>
             <td class="${expense.remaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(expense.remaining)}</td>
         </tr>

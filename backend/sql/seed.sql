@@ -8,32 +8,32 @@ INSERT OR IGNORE INTO accounts (masked_number, name) VALUES
 ('****9226', 'Reserve Fund');
 
 -- Categories: Income (Dues)
-INSERT OR IGNORE INTO categories (name, type, default_account, timing) VALUES
-('Dues 101', 'Income', 'Savings', 'monthly'),
-('Dues 102', 'Income', 'Savings', 'monthly'),
-('Dues 103', 'Income', 'Savings', 'monthly'),
-('Dues 201', 'Income', 'Savings', 'monthly'),
-('Dues 202', 'Income', 'Savings', 'monthly'),
-('Dues 203', 'Income', 'Savings', 'monthly'),
-('Dues 301', 'Income', 'Savings', 'monthly'),
-('Dues 302', 'Income', 'Savings', 'monthly'),
-('Dues 303', 'Income', 'Savings', 'monthly'),
-('Interest income', 'Income', 'Any', 'monthly');
+INSERT OR IGNORE INTO categories (name, type, default_account) VALUES
+('Dues 101', 'Income', 'Savings'),
+('Dues 102', 'Income', 'Savings'),
+('Dues 103', 'Income', 'Savings'),
+('Dues 201', 'Income', 'Savings'),
+('Dues 202', 'Income', 'Savings'),
+('Dues 203', 'Income', 'Savings'),
+('Dues 301', 'Income', 'Savings'),
+('Dues 302', 'Income', 'Savings'),
+('Dues 303', 'Income', 'Savings'),
+('Interest income', 'Income', 'Any');
 
 -- Categories: Expenses
-INSERT OR IGNORE INTO categories (name, type, default_account, timing) VALUES
-('Bulger Safe & Lock', 'Expense', 'Checking', 'annual'),
-('Cintas Fire Protection', 'Expense', 'Checking', 'annual'),
-('Common Area Cleaning', 'Expense', 'Checking', 'monthly'),
-('Fire Alarm', 'Expense', 'Checking', 'monthly'),
-('Grounds/Landscaping', 'Expense', 'Checking', 'monthly'),
-('Homeowners Club Dues', 'Expense', 'Checking', 'annual'),
-('Insurance Premiums', 'Expense', 'Checking', 'monthly'),
-('Seattle City Light', 'Expense', 'Checking', 'monthly'),
-('Other', 'Expense', 'Checking', 'annual'),
-('Reserve Contribution', 'Transfer', 'Savings', 'monthly'),
-('Reserve Expenses', 'Expense', 'Reserve Fund', 'annual'),
-('Transfers', 'Internal', 'Any', 'annual');
+INSERT OR IGNORE INTO categories (name, type, default_account) VALUES
+('Bulger Safe & Lock', 'Expense', 'Checking'),
+('Cintas Fire Protection', 'Expense', 'Checking'),
+('Common Area Cleaning', 'Expense', 'Checking'),
+('Fire Alarm', 'Expense', 'Checking'),
+('Grounds/Landscaping', 'Expense', 'Checking'),
+('Homeowners Club Dues', 'Expense', 'Checking'),
+('Insurance Premiums', 'Expense', 'Checking'),
+('Seattle City Light', 'Expense', 'Checking'),
+('Other', 'Expense', 'Checking'),
+('Reserve Contribution', 'Transfer', 'Savings'),
+('Reserve Expenses', 'Expense', 'Reserve Fund'),
+('Transfers', 'Internal', 'Any');
 
 -- Unit ownership percentages and past due balances
 -- Percentages sum to 99.9% (0.1% is allocated to calculated interest income)
