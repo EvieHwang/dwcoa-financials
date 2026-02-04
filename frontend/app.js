@@ -369,6 +369,13 @@ function renderDashboard(data) {
         }
     }
 
+    // Update section date indicators
+    const indicatorDate = new Date(snapshotDate + 'T00:00:00');
+    const indicatorFormatted = indicatorDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    document.querySelectorAll('.section-date-indicator').forEach(el => {
+        el.textContent = `As of ${indicatorFormatted}`;
+    });
+
     // User role - show badge and control admin visibility
     const roleEl = document.getElementById('user-role');
     roleEl.textContent = userRole === 'admin' ? 'Admin' : 'Homeowner';
@@ -503,7 +510,7 @@ function renderDashboard(data) {
         <tr>
             <td>${unit.unit}</td>
             <td>${formatPercent(unit.ownership_pct)}</td>
-            <td>${unit.past_due_balance > 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
+            <td class="${unit.past_due_balance < 0 ? 'positive' : ''}">${unit.past_due_balance !== 0 ? formatCurrency(unit.past_due_balance) : '-'}</td>
             <td>${formatCurrency(unit.annual_budget)}</td>
             <td>${formatCurrency(unit.paid_ytd)}</td>
             <td class="${displayRemaining >= 0 ? 'positive' : 'negative'}">${formatCurrency(displayRemaining)}</td>
@@ -979,69 +986,6 @@ async function copyBudgets(fromYear, toYear) {
     }
 }
 
-// Unit management functions
-async function loadUnits(year) {
-    try {
-        const response = await apiRequest(`/units?year=${year}`);
-        const data = await response.json();
-        renderUnitsTable(data.units, year);
-    } catch (e) {
-        showBudgetStatus('Error loading units: ' + e.message, 'error');
-    }
-}
-
-function renderUnitsTable(units, year) {
-    const tbody = document.getElementById('units-edit-body');
-    if (!tbody) return;
-
-    // Update section title to show year
-    const titleEl = document.getElementById('units-section-title');
-    if (titleEl) {
-        titleEl.textContent = `Unit Past Due Balances (${year})`;
-    }
-
-    tbody.innerHTML = units.map(unit => `
-        <tr data-unit="${unit.number}">
-            <td>Unit ${unit.number}</td>
-            <td>
-                <input type="number" step="0.01" min="0" class="past-due-input"
-                       value="${unit.past_due_balance || 0}">
-            </td>
-            <td>
-                <button class="btn-small save-unit-btn">Save</button>
-            </td>
-        </tr>
-    `).join('');
-
-    // Add save handlers
-    tbody.querySelectorAll('.save-unit-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const row = btn.closest('tr');
-            const unitNumber = row.dataset.unit;
-            const input = row.querySelector('.past-due-input');
-            const pastDueBalance = parseFloat(input.value) || 0;
-
-            try {
-                const response = await apiRequest(`/units/${unitNumber}`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ year: year, past_due_balance: pastDueBalance })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to update unit');
-                }
-
-                showBudgetStatus(`Unit ${unitNumber} past due for ${year} updated`, 'success');
-                // Reload dashboard to reflect changes
-                await loadDashboard();
-            } catch (e) {
-                showBudgetStatus('Error updating unit: ' + e.message, 'error');
-            }
-        });
-    });
-}
-
 function showBudgetStatus(message, type) {
     const statusEl = document.getElementById('budget-status');
     statusEl.textContent = message;
@@ -1080,7 +1024,6 @@ async function toggleBudgetLock(year, locked) {
 
         // Refresh UI
         await loadBudgets(year);
-        await loadUnits(year);
     } catch (e) {
         showBudgetStatus('Error: ' + e.message, 'error');
         // Restore checkbox state
@@ -1255,7 +1198,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         manageBudgetsBtn.addEventListener('click', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
-            await loadUnits(year);
             document.getElementById('budget-modal').classList.remove('hidden');
         });
 
@@ -1263,7 +1205,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         budgetYearEl.addEventListener('change', async () => {
             const year = parseInt(budgetYearEl.value);
             await loadBudgets(year);
-            await loadUnits(year);
         });
     }
 
@@ -1820,6 +1761,7 @@ function showRulesStatus(message, type) {
 
 let selectedUnit = null;
 let paymentHistoryTable = null;
+let statementRequestId = 0;  // Tracks current request to prevent race conditions
 
 function initUnitSelector() {
     const selector = document.getElementById('unit-selector');
@@ -1859,12 +1801,20 @@ async function loadStatement(unit) {
         return;
     }
 
+    // Track this request to handle race conditions
+    const requestId = ++statementRequestId;
+
     try {
         // Fetch both statement data and full payment history in parallel
         const [statementResponse, paymentsResponse] = await Promise.all([
             apiRequest(`/statement/${unit}`),
             apiRequest(`/statement/${unit}/payments`)
         ]);
+
+        // Check if this request is still current (user may have changed selection)
+        if (requestId !== statementRequestId) {
+            return;  // A newer request was made, ignore this stale result
+        }
 
         if (!statementResponse.ok) {
             const error = await statementResponse.json();
@@ -1877,7 +1827,10 @@ async function loadStatement(unit) {
 
         renderMyAccount(statementData, paymentsData.payments || []);
     } catch (e) {
-        console.error('Failed to load statement:', e);
+        // Only log error if this was the current request
+        if (requestId === statementRequestId) {
+            console.error('Failed to load statement:', e);
+        }
     }
 }
 
@@ -1941,20 +1894,24 @@ function renderMyAccount(data, payments) {
     summaryBody.innerHTML = tableRows;
 
     // ==========================================================================
-    // Payment Guidance
+    // Payment Info (consolidated row)
     // ==========================================================================
     const remaining = data.current_year.remaining_balance;
     const paidInFullMsg = document.getElementById('paid-in-full-message');
     const creditBalanceMsg = document.getElementById('credit-balance-message');
     const monthsEl = document.getElementById('months-remaining');
+    const originalMonthlyEl = document.getElementById('original-monthly');
     const suggestedEl = document.getElementById('suggested-monthly');
 
-    // Get the guidance items (months remaining and suggested monthly containers)
-    const guidanceItems = document.querySelectorAll('#payment-guidance-section .guidance-item');
+    // Always show original monthly (annual / 12)
+    originalMonthlyEl.textContent = formatCurrency(data.current_year.original_monthly || 0);
+
+    // Get the info items that show payment amounts (not unit selector)
+    const paymentInfoItems = document.querySelectorAll('#payment-info-section .info-item:not(:first-child)');
 
     if (remaining <= 0) {
-        // Hide the guidance items
-        guidanceItems.forEach(item => item.classList.add('hidden'));
+        // Hide the payment guidance items (months, original, suggested)
+        paymentInfoItems.forEach(item => item.classList.add('hidden'));
 
         if (remaining < 0) {
             // Credit balance
@@ -1967,8 +1924,8 @@ function renderMyAccount(data, payments) {
             creditBalanceMsg.classList.add('hidden');
         }
     } else {
-        // Show the guidance items
-        guidanceItems.forEach(item => item.classList.remove('hidden'));
+        // Show the payment info items
+        paymentInfoItems.forEach(item => item.classList.remove('hidden'));
         paidInFullMsg.classList.add('hidden');
         creditBalanceMsg.classList.add('hidden');
 
