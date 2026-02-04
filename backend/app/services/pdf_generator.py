@@ -37,6 +37,14 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
     # Get data as of the snapshot date
     accounts = budget_calc.get_account_balances(as_of_date=snapshot_date)
     total_cash = sum(a['balance'] for a in accounts)
+
+    # Get starting balances for the year
+    beginning_balances = budget_calc.get_account_balances_at_year_start(year)
+    starting_balance_map = {b['name']: b['balance'] for b in beginning_balances}
+    for account in accounts:
+        account['starting_balance'] = starting_balance_map.get(account['name'], 0)
+    total_starting = sum(a['starting_balance'] for a in accounts)
+
     budget_summary = budget_calc.get_budget_summary(year, as_of_date=snapshot_date)
     dues_data = dues.get_dues_status(year, as_of_date=snapshot_date)
     reserve_fund = budget_calc.get_reserve_fund_status(year, as_of_date=snapshot_date)
@@ -82,31 +90,40 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
         elements.append(Paragraph(f"Last Updated: {last_updated}", normal_style))
     elements.append(Spacer(1, 12))
 
-    # Account Balances - match dashboard with Reserve Fund YTD change
+    # Account Balances - match dashboard with Starting, Current, Change columns
     elements.append(Paragraph("Account Balances", heading_style))
 
-    # Find balances by account name
-    def find_balance(name):
-        acc = next((a for a in accounts if a['name'] == name), None)
-        return acc['balance'] if acc else 0
+    # Find account data by name
+    def find_account(name):
+        return next((a for a in accounts if a['name'] == name), None)
 
-    checking = find_balance('Checking')
-    savings = find_balance('Savings')
-    reserve = find_balance('Reserve Fund')
+    account_order = ['Checking', 'Savings', 'Reserve Fund']
+    account_data = [['Account', 'Starting', 'Current', 'Change']]
 
-    # Reserve YTD change (net)
-    reserve_ytd = reserve_fund['net']
-    ytd_prefix = '+' if reserve_ytd >= 0 else ''
+    for name in account_order:
+        acc = find_account(name)
+        starting = acc['starting_balance'] if acc else 0
+        current = acc['balance'] if acc else 0
+        change = current - starting
+        change_prefix = '+' if change >= 0 else ''
+        account_data.append([
+            name,
+            format_currency(starting),
+            format_currency(current),
+            f'{change_prefix}{format_currency(change)}'
+        ])
 
-    account_data = [
-        ['Account', 'Balance', 'YTD Change'],
-        ['Checking', format_currency(checking), ''],
-        ['Savings', format_currency(savings), ''],
-        ['Reserve Fund', format_currency(reserve), f'{ytd_prefix}{format_currency(reserve_ytd)}'],
-        ['Total Cash', format_currency(total_cash), '']
-    ]
+    # Total row
+    total_change = total_cash - total_starting
+    total_change_prefix = '+' if total_change >= 0 else ''
+    account_data.append([
+        'Total Cash',
+        format_currency(total_starting),
+        format_currency(total_cash),
+        f'{total_change_prefix}{format_currency(total_change)}'
+    ])
 
-    account_table = Table(account_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+    account_table = Table(account_data, colWidths=[1.5*inch, 1.25*inch, 1.25*inch, 1.25*inch])
     account_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -117,6 +134,73 @@ def generate_dashboard_pdf(as_of_date: Optional[str] = None) -> bytes:
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
     ]))
     elements.append(account_table)
+    elements.append(Spacer(1, 6))
+
+    # Reserve Fund Goal and Net Income summary boxes (side by side using a nested table)
+    expense = budget_summary['expense_summary']
+
+    # Find Reserve Fund goal from expense categories
+    reserve_category = next(
+        (cat for cat in expense['categories']
+         if cat['category'].lower() in ('reserve fund', 'reserve contribution')),
+        None
+    )
+    reserve_goal = reserve_category['annual_budget'] if reserve_category else 0
+
+    # Calculate Reserve Fund actual change (current - starting)
+    reserve_acc = find_account('Reserve Fund')
+    reserve_starting = reserve_acc['starting_balance'] if reserve_acc else 0
+    reserve_current = reserve_acc['balance'] if reserve_acc else 0
+    reserve_actual_change = reserve_current - reserve_starting
+    reserve_difference = reserve_actual_change - reserve_goal
+
+    reserve_change_prefix = '+' if reserve_actual_change >= 0 else ''
+    reserve_diff_prefix = '+' if reserve_difference >= 0 else ''
+
+    # Net Income calculations
+    income_actual = budget_summary['income_summary']['ytd_actual']
+    expense_actual = expense['ytd_actual']
+    net_income = income_actual - expense_actual
+    net_prefix = '+' if net_income >= 0 else ''
+
+    # Reserve Fund Goal summary
+    reserve_summary_data = [
+        [Paragraph('<b>Reserve Fund Goal</b>', normal_style), ''],
+        ['Goal:', format_currency(reserve_goal)],
+        ['Actual:', f'{reserve_change_prefix}{format_currency(reserve_actual_change)}'],
+        ['Difference:', f'{reserve_diff_prefix}{format_currency(reserve_difference)}']
+    ]
+    reserve_summary_table = Table(reserve_summary_data, colWidths=[1.2*inch, 1.3*inch])
+    reserve_summary_table.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('SPAN', (0, 0), (1, 0)),
+    ]))
+
+    # Net Income summary
+    net_income_summary_data = [
+        [Paragraph('<b>Net Income</b>', normal_style), ''],
+        ['Income:', format_currency(income_actual)],
+        ['Expenses:', format_currency(expense_actual)],
+        ['Net:', f'{net_prefix}{format_currency(net_income)}']
+    ]
+    net_income_summary_table = Table(net_income_summary_data, colWidths=[1.2*inch, 1.3*inch])
+    net_income_summary_table.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('SPAN', (0, 0), (1, 0)),
+    ]))
+
+    # Combine the two summary boxes side by side
+    combined_summary = Table(
+        [[reserve_summary_table, Spacer(0.5*inch, 0), net_income_summary_table]],
+        colWidths=[2.5*inch, 0.5*inch, 2.5*inch]
+    )
+    elements.append(combined_summary)
     elements.append(Spacer(1, 12))
 
     # Income & Dues - match dashboard layout
