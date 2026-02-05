@@ -16,6 +16,7 @@
     <div id="login-modal" class="modal">
         <div class="modal-content">
             <h2>DWCOA Financial Dashboard</h2>
+            <p class="login-welcome">View association finances, track dues, and download reports.</p>
             <p>Enter password to access</p>
             <form id="login-form">
                 <input type="password" id="password" placeholder="Password" required>
@@ -36,8 +37,8 @@
                 </div>
                 <div class="header-meta">
                     <span id="user-role" class="role-badge"></span>
-                    <button id="download-csv-btn" class="btn-header">CSV</button>
-                    <button id="download-pdf-btn" class="btn-header">PDF</button>
+                    <button id="download-csv-btn" class="btn-header" title="Download all transactions as CSV">CSV</button>
+                    <button id="download-pdf-btn" class="btn-header" title="Download dashboard summary as PDF">PDF</button>
                     <button id="logout-btn" class="btn-header">Logout</button>
                 </div>
             </div>
@@ -79,16 +80,19 @@
 
             <!-- Financial Overview Group -->
             <div class="financial-overview-group">
-                <div class="date-picker-row">
-                    <label for="snapshot-date">View as of:</label>
-                    <input type="date" id="snapshot-date">
-                    <button id="reset-today-btn" class="btn-secondary">Reset to Today</button>
-                    <span id="snapshot-label"></span>
-                </div>
-
                 <!-- Account Balances -->
                 <section id="accounts-section">
-                <h2>Account Balances <span class="section-date-indicator"></span></h2>
+                <div class="section-header-row">
+                    <h2>Account Balances</h2>
+                    <div class="year-selector-inline">
+                        <label for="year-selector-main">Year:</label>
+                        <select id="year-selector-main">
+                            <option value="2025">2025</option>
+                            <option value="2026" selected>2026</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="section-intro">Cash positions across all HOA accounts. Starting balance is Jan 1.</p>
                 <div class="accounts-layout">
                     <table class="cash-position-table">
                         <thead>
@@ -161,6 +165,7 @@
             <!-- Income & Dues -->
             <section id="income-section">
                 <h2>Income & Dues <span class="section-date-indicator"></span></h2>
+                <p class="section-intro">Dues collection status by unit. Each homeowner's budget is based on their ownership share.</p>
                 <div class="income-grid">
                     <div class="income-summary-column">
                         <div class="income-summary">
@@ -198,6 +203,8 @@
                 <!-- Expenses -->
                 <section id="expense-section">
                     <h2>Operating Expenses <span class="section-date-indicator"></span></h2>
+                    <p class="section-intro">Spending by category compared to the annual budget.</p>
+                    <div id="expense-budget-notice" class="notice hidden"></div>
                     <div class="expense-grid">
                         <div class="expense-summary-column">
                             <div class="expense-summary">
@@ -234,6 +241,7 @@
             <!-- My Account (Unit Statement) -->
             <section id="my-account-section">
                 <h2>My Account</h2>
+                <p class="section-intro">Track your dues payments and see your recommended monthly payment to stay current.</p>
                 <div id="my-account-notice" class="notice hidden"></div>
 
                 <!-- Payment Info (consolidated row) -->
@@ -254,15 +262,15 @@
                         </select>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Months Left:</span>
+                        <span class="info-label">Months Left <span class="info-hint">(in year)</span>:</span>
                         <span id="months-remaining">11</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Original Monthly:</span>
+                        <span class="info-label">Original Monthly <span class="info-hint">(annual ÷ 12)</span>:</span>
                         <span id="original-monthly">$0.00</span>
                     </div>
                     <div class="info-item highlight">
-                        <span class="info-label">Suggested Monthly:</span>
+                        <span class="info-label">Suggested Monthly <span class="info-hint">(to stay on track)</span>:</span>
                         <span id="suggested-monthly">$0.00</span>
                     </div>
                 </div>
@@ -299,6 +307,7 @@
             <!-- Transaction Viewer -->
             <section id="transactions-section">
                 <h2>Transaction History</h2>
+                <p class="section-intro">Browse all transactions across HOA accounts. Use the column filters to search and sort.</p>
                 <div class="transactions-controls">
                     <button id="export-transactions-btn" class="btn-secondary">Export CSV</button>
                 </div>
@@ -368,7 +377,6 @@
                     <tr>
                         <th>Category</th>
                         <th>Type</th>
-                        <th>Timing</th>
                         <th>Annual Amount</th>
                         <th>Actions</th>
                     </tr>
@@ -379,15 +387,6 @@
             <div class="add-category-row">
                 <button id="add-category-btn" class="btn-secondary">+ Add Category</button>
             </div>
-        </div>
-    </div>
-
-    <!-- Historical Data Disclaimer Modal -->
-    <div id="historical-modal" class="modal hidden">
-        <div class="modal-content modal-small">
-            <h2>Historical Data</h2>
-            <p>This information is incomplete and provided for historical purposes only.</p>
-            <button id="historical-ok-btn" class="btn-primary">OK</button>
         </div>
     </div>
 
