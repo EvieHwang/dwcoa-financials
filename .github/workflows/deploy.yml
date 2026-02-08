@@ -81,19 +81,17 @@ jobs:
             --output text)
           echo "frontend_bucket=$FRONTEND_BUCKET" >> $GITHUB_OUTPUT
 
-          # Get CloudFront distribution ID from the distribution domain
+          # Get CloudFront URL and extract distribution ID from it
           CLOUDFRONT_URL=$(aws cloudformation describe-stacks \
             --stack-name dwcoa-financials \
             --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontUrl`].OutputValue' \
             --output text)
           echo "cloudfront_url=$CLOUDFRONT_URL" >> $GITHUB_OUTPUT
 
-          # Extract distribution ID from CloudFormation resources
-          CF_DISTRIBUTION=$(aws cloudformation describe-stack-resources \
-            --stack-name dwcoa-financials \
-            --query "StackResources[?ResourceType=='AWS::CloudFront::Distribution'].PhysicalResourceId" \
-            --output text)
+          # Extract distribution ID from URL (e.g., https://d290j9t4gh1ja7.cloudfront.net -> d290j9t4gh1ja7)
+          CF_DISTRIBUTION=$(echo "$CLOUDFRONT_URL" | sed 's|https://\([^.]*\)\.cloudfront\.net|\1|')
           echo "cf_distribution=$CF_DISTRIBUTION" >> $GITHUB_OUTPUT
+          echo "CloudFront Distribution ID: $CF_DISTRIBUTION"
 
       - name: Verify Backend Deployment
         run: |
