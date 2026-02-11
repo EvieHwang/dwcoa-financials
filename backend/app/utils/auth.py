@@ -54,7 +54,7 @@ def create_token(role: str) -> Tuple[str, datetime]:
     """Create a JWT token.
 
     Args:
-        role: User role ('admin' or 'homeowner')
+        role: User role ('admin' or 'board')
 
     Returns:
         Tuple of (token string, expiration datetime)
@@ -94,7 +94,7 @@ def get_role_from_token(token: str) -> Optional[str]:
         token: JWT token string
 
     Returns:
-        Role string ('admin' or 'homeowner'), or None if invalid
+        Role string ('admin' or 'board'), or None if invalid
     """
     payload = verify_token(token)
     if payload:
@@ -112,17 +112,17 @@ def authenticate(password: str) -> Optional[Tuple[str, str, datetime]]:
         Tuple of (token, role, expires_at), or None if invalid
     """
     admin_hash = os.environ.get('ADMIN_PASSWORD_HASH', '')
-    homeowner_hash = os.environ.get('BOARD_PASSWORD_HASH', '')  # Still uses BOARD env var
+    board_hash = os.environ.get('BOARD_PASSWORD_HASH', '')
 
     # Check admin password first
     if admin_hash and verify_password(password, admin_hash):
         token, expires_at = create_token('admin')
         return token, 'admin', expires_at
 
-    # Check homeowner password (view-only access)
-    if homeowner_hash and verify_password(password, homeowner_hash):
-        token, expires_at = create_token('homeowner')
-        return token, 'homeowner', expires_at
+    # Check board password
+    if board_hash and verify_password(password, board_hash):
+        token, expires_at = create_token('board')
+        return token, 'board', expires_at
 
     return None
 
