@@ -52,6 +52,9 @@ jobs:
         run: sam build
 
       - name: SAM Deploy
+        env:
+          ADMIN_HASH: ${{ secrets.ADMIN_PASSWORD_HASH }}
+          BOARD_HASH: ${{ secrets.BOARD_PASSWORD_HASH }}
         run: |
           sam deploy \
             --stack-name dwcoa-financials \
@@ -61,8 +64,8 @@ jobs:
             --resolve-s3 \
             --parameter-overrides \
               AnthropicApiKey="${{ secrets.ANTHROPIC_API_KEY }}" \
-              AdminPasswordHash="${{ secrets.ADMIN_PASSWORD_HASH }}" \
-              BoardPasswordHash="${{ secrets.BOARD_PASSWORD_HASH }}" \
+              AdminPasswordHash="$ADMIN_HASH" \
+              BoardPasswordHash="$BOARD_HASH" \
               JwtSecret="${{ secrets.JWT_SECRET }}"
 
       - name: Get Stack Outputs
