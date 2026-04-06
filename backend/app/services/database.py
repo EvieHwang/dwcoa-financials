@@ -692,3 +692,29 @@ def get_unit_recent_payments(unit_number: str, year: int, limit: int = 10) -> Li
     category_name = f'Dues {unit_number}'
     rows = fetch_all(sql, (category_name, str(year), limit))
     return [{'date': row['date'], 'amount': row['amount'], 'description': row['description']} for row in rows]
+
+
+def has_unit_payment_in_current_month(unit_number: str, year: int, current_month: int) -> bool:
+    """Check if unit has made ANY payment in the current month.
+
+    Args:
+        unit_number: Unit number (e.g., '101')
+        year: Payment year
+        current_month: Current month (1-12)
+
+    Returns:
+        True if any payment exists in current month, False otherwise
+    """
+    sql = """
+        SELECT COUNT(*) as count
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE c.name = ?
+        AND strftime('%Y', t.post_date) = ?
+        AND CAST(strftime('%m', t.post_date) AS INTEGER) = ?
+        AND t.credit IS NOT NULL
+        AND t.credit > 0
+    """
+    category_name = f'Dues {unit_number}'
+    row = fetch_one(sql, (category_name, str(year), current_month))
+    return row['count'] > 0 if row else False

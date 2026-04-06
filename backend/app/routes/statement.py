@@ -116,15 +116,29 @@ def handle_get_statement(unit_number: str, year: Optional[int] = None) -> dict:
     # Original monthly dues = annual budget / 12 (what they'd pay if perfectly on schedule)
     original_monthly = annual_dues / 12 if annual_dues > 0 else 0.0
 
-    # Months remaining with 15th cutoff:
-    # Before the 15th: count current month (still time to pay)
-    # On or after the 15th: don't count current month (too late)
-    if today.day < 15:
-        months_remaining = 12 - current_month + 1
-    else:
-        months_remaining = 12 - current_month
+    # Months remaining calculation:
+    # 1. Check if ANY payment made in current month
+    #    - If yes: exclude current month from projection (month already "used")
+    #    - If no: use 15th day cutoff for user convenience
+    #      - Before 15th: include current month (still time to pay)
+    #      - After 15th: exclude current month (too late for current month)
+    # 2. Ensure minimum 1 month to avoid division by zero
 
-    # Ensure at least 1 month (for December after the 15th)
+    has_paid_this_month = database.has_unit_payment_in_current_month(
+        unit_number, year, current_month
+    )
+
+    if has_paid_this_month:
+        # Payment made this month - exclude current month from remaining months
+        months_remaining = 12 - current_month
+    else:
+        # No payment this month - use 15th day cutoff
+        if today.day < 15:
+            months_remaining = 12 - current_month + 1  # Include current month
+        else:
+            months_remaining = 12 - current_month  # Exclude current month
+
+    # Ensure at least 1 month (for December)
     months_remaining = max(1, months_remaining)
 
     if remaining_balance <= 0:
