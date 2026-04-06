@@ -8,6 +8,11 @@ from app.services import database, budget_calc
 from app.routes import dues
 
 
+def _is_budget_locked(year: int) -> bool:
+    """Check if budget is locked for a given year."""
+    return database.is_budget_locked(year)
+
+
 def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
     """Get dashboard data as of a specific date.
 
@@ -61,6 +66,9 @@ def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
     )
     review_count = review_row['count'] if review_row else 0
 
+    # Check if budget is locked for the displayed year
+    budget_locked = _is_budget_locked(year)
+
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'application/json'},
@@ -68,6 +76,7 @@ def handle_get_dashboard(as_of_date: Optional[str] = None) -> dict:
             'last_updated': last_updated or None,
             'as_of_date': snapshot_date.isoformat(),
             'year': year,
+            'budget_locked': budget_locked,
             'accounts': accounts,
             'beginning_balances': beginning_balances,
             'total_cash': round(total_cash, 2),

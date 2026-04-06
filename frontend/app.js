@@ -12,6 +12,8 @@ let categories = [];
 let budgetChart = null;
 let cashflowChart = null;
 let historicalDisclaimerShown = false;  // Session flag for historical data disclaimer
+let dashboardBudgetLocked = false;  // Budget lock status for the current dashboard view year
+let dashboardYear = new Date().getFullYear();  // Year being displayed in dashboard
 
 // Utility functions
 function formatCurrency(amount) {
@@ -345,6 +347,10 @@ function checkHistoricalDate(dateString) {
 }
 
 function renderDashboard(data) {
+    // Store dashboard-level budget lock state for use by other sections
+    dashboardBudgetLocked = data.budget_locked || false;
+    dashboardYear = data.year || new Date().getFullYear();
+
     // Last updated
     document.getElementById('last-updated').textContent =
         data.last_updated ? `Last updated: ${formatDate(data.last_updated)}` : 'No data uploaded';
@@ -575,6 +581,17 @@ function renderDashboard(data) {
         </tr>
     `;
     expenseTable.innerHTML = expenseRows;
+
+    // Show budget lock notice for expenses section
+    const expenseBudgetNotice = document.getElementById('expense-budget-notice');
+    if (expenseBudgetNotice) {
+        if (!data.budget_locked) {
+            expenseBudgetNotice.textContent = `Budget for ${data.year} is pending approval. Amounts shown are preliminary.`;
+            expenseBudgetNotice.classList.remove('hidden');
+        } else {
+            expenseBudgetNotice.classList.add('hidden');
+        }
+    }
 
     // Review button - show count and gray out if zero
     const reviewBtn = document.getElementById('review-btn');
@@ -1842,12 +1859,13 @@ function renderMyAccount(data, payments) {
     section.classList.remove('hidden');
 
     // ==========================================================================
-    // Budget lock notice
+    // Budget lock notice - uses dashboard's budget lock status for consistency
+    // with the selected snapshot date year
     // ==========================================================================
     const noticeEl = document.getElementById('my-account-notice');
     if (noticeEl) {
-        if (!data.current_year.budget_locked) {
-            noticeEl.textContent = `Budget for ${data.current_year.year} is pending approval. Amounts shown are preliminary.`;
+        if (!dashboardBudgetLocked) {
+            noticeEl.textContent = `Budget for ${dashboardYear} is pending approval. Amounts shown are preliminary.`;
             noticeEl.classList.remove('hidden');
         } else {
             noticeEl.classList.add('hidden');
